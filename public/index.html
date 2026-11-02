@@ -360,7 +360,7 @@ table.gl.jr tr.jb td{font-weight:600;background:#e9eff6;border-top:1px solid #9f
       <h2>Masuk</h2>
       <p class="sub">Masuk ke Zahir Insight dengan akun Zahir Anda.</p>
       <div class="field"><label>Server</label>
-        <div style="display:flex;gap:8px"><input id="server" placeholder="demo.zahirerp.com atau http://192.168.1.10:8989" list="srvList" required><button class="ghost" type="button" id="btnSaveSrv" title="Simpan server ini sebagai bawaan">Simpan</button></div>
+        <div style="display:flex;gap:8px"><input id="server" placeholder="go.zahironline.com atau http://192.168.1.10:8989" list="srvList" required><button class="ghost" type="button" id="btnSaveSrv" title="Simpan server ini sebagai bawaan">Simpan</button></div>
         <datalist id="srvList"></datalist><div class="prev" id="srvSaved" style="min-height:14px;color:var(--ok)"></div></div>
       <div class="field"><label>Email</label><input id="user" type="email" placeholder="nama@perusahaan.com" required></div>
       <div class="field"><label>Password</label><input id="pass" type="password" required></div>
@@ -612,7 +612,7 @@ const ov = { show(t,sub=''){ $('#ovTitle').textContent=t; $('#ovSub').textConten
 function showPage(id){ for(const p of ['pgCo','pgCat','pgDesign','pgRpt']) $('#'+p).classList.toggle('hide', p!==id); $('#btnDb').classList.toggle('hide', id==='pgCo'); window.scrollTo(0,0); }
 
 /* ---------- login ---------- */
-(function initLogin(){ const hist=L.get('servers')||['demo.zahirerp.com']; $('#srvList').innerHTML=hist.map(h=>`<option value="${esc(h)}">`).join(''); $('#server').value=hist[0]||'';
+(function initLogin(){ const hist=L.get('servers')||['go.zahironline.com']; $('#srvList').innerHTML=hist.map(h=>`<option value="${esc(h)}">`).join(''); $('#server').value=hist[0]||'';
   $('#btnSaveSrv').onclick=()=>{ saveServer($('#server').value); $('#srvSaved').textContent='Tersimpan sebagai server utama'; setTimeout(()=>$('#srvSaved').textContent='',2500); }; })();
 $('#frmLogin').addEventListener('submit', async e=>{
   e.preventDefault(); $('#loginErr').textContent=''; $('#btnLogin').disabled=true; $('#btnLogin').textContent='Menghubungkan…';

@@ -144,7 +144,9 @@ app.post('/auth/login', async (req, res) => {
     const r = await zfetch(server + '/api/v2/me', headers);
     if (!r.json?.access_token) {
       const msg = r.json?.error?.message || r.json?.message || r.json?.detail?.message || (r.status === 401 ? 'Email / password salah' : 'Token tidak ada di respons');
-      return res.status(r.status === 200 ? 502 : r.status).json({ error: `Login gagal (HTTP ${r.status}): ${msg}` });
+      const host = server.replace(/^https?:\/\//i, '');
+      const hint = r.status === 401 ? ` — login dicoba ke server "${host}". Bila akun Anda ada di server lain (mis. go.zahironline.com), ganti isi kolom Server di halaman login.` : '';
+      return res.status(r.status === 200 ? 502 : r.status).json({ error: `Login gagal (HTTP ${r.status}): ${msg}${hint}` });
     }
     res.json({ server, me: r.json });
   } catch (e) { res.status(500).json({ error: e.message }); }
