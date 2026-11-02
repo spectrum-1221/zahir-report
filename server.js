@@ -13,6 +13,10 @@ if (process.env.ZAHIR_INSECURE_TLS === '1') process.env.NODE_TLS_REJECT_UNAUTHOR
 const app = express();
 // client_id:client_secret (base64) — sama dengan bawaan CoretaxFaktur; bisa di-override per login
 const DEFAULT_CLIENT_B64 = process.env.ZAHIR_CLIENT_B64 || 'NjljYjNlYTMxN2EzMmM0ZTYxNDNlNjY1ZmRiMjBiMTQ6MTAyNmQ1MWQyZTkwZjg=';
+// client yang dipakai situs Zahir Online (go.zahironline.com, 'ZahirOnline-GO'): client_id sama, secret berbeda satu digit dari bawaan di atas.
+// Login mencoba bawaan dulu; bila 401 dicoba client berikutnya, dan client yang berhasil dikembalikan ke browser untuk panggilan selanjutnya.
+const GO_CLIENT_B64 = 'NjljYjNlYTMxN2EzMmM0ZTYxNDNlNjY1ZmRiMjBiMTQ6MTEyNmQ1MWQyZTkwZjg=';
+const CLIENT_CANDIDATES = [...new Set([GO_CLIENT_B64, DEFAULT_CLIENT_B64])];
 const COMPANY_ENDPOINTS = ['/api/v3/user_companies', '/api/v2/user_companies', '/api/v2/companies', '/api/v1/user_companies'];
 
 // Versi online (Vercel): tanpa penyimpanan file, ekspor Excel dibuat di browser, hanya server Zahir Online.
@@ -137,11 +141,11 @@ app.post('/auth/login', async (req, res) => {
       password = p.join(':'); if (!req.body.username) req.body.username = u;
     }
     if (!req.body.username || !password) return res.status(400).json({ error: 'Email dan password wajib diisi' });
-    const headers = {
-      Authorization: 'Basic ' + Buffer.from(`${req.body.username}:${password}`).toString('base64'),
-      client: clientB64(req.body.client),
-    };
-    const r = await zfetch(server + '/api/v2/me', headers);
+    const basic = 'Basic ' + Buffer.from(`${req.body.username}:${password}`).toString('base64');
+    // client diisi pemakai → dipakai apa adanya; kalau tidak, coba client Zahir Online GO lalu bawaan sampai tidak 401
+    const tries = String(req.body.client || '').trim() ? [clientB64(req.body.client)] : CLIENT_CANDIDATES;
+    let r = null, usedClient = tries[0];
+    for (const c of tries) { usedClient = c; r = await zfetch(server + '/api/v2/me', { Authorization: basic, client: c }); if (r.status !== 401) break; }
     if (!r.json?.access_token) {
       const msg = r.json?.error?.message || r.json?.message || r.json?.detail?.message || (r.status === 401 ? 'Email / password salah' : 'Token tidak ada di respons');
       const host = server.replace(/^https?:\/\//i, '');
@@ -149,7 +153,7 @@ app.post('/auth/login', async (req, res) => {
       const hint = r.status === 401 ? ` — dicoba ke server "${host}", email "${req.body.username}", password ${password.length} karakter${password !== password.trim() ? ' (ADA spasi di awal/akhir)' : ''}, dikirim via ${via}. Bila angka itu tidak sama dengan panjang password Anda, ketik ulang password (jangan autofill).` : '';
       return res.status(r.status === 200 ? 502 : r.status).json({ error: `Login gagal (HTTP ${r.status}): ${msg}${hint}` });
     }
-    res.json({ server, me: r.json });
+    res.json({ server, me: r.json, client: usedClient });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

@@ -625,7 +625,7 @@ $('#frmLogin').addEventListener('submit', async e=>{
       body.password_enc=btoa(String.fromCharCode(...new Uint8Array(buf)));
     } else hdr.Authorization='Basic '+btoa(unescape(encodeURIComponent($('#user').value+':'+pass)));
     const r=await post('/auth/login',body,hdr);
-    st.server=r.server; st.token=r.me.access_token; st.me=r.me; st.client='';
+    st.server=r.server; st.token=r.me.access_token; st.me=r.me; st.client=r.client||'';
     saveServer($('#server').value);
     S.set('sess',{server:st.server,token:st.token,me:st.me,client:st.client});
     enterApp();
