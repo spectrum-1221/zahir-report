@@ -127,8 +127,8 @@ async function zfetch(url, headers = {}, method = 'GET', body) {
 app.post('/auth/login', async (req, res) => {
   try {
     const server = normServer(req.body.server);
-    let password = '';
-    if (req.body.password_enc) {
+    let password = '', via = 'basic';
+    if (req.body.password_enc) { via = 'rsa';
       try { password = decryptPassword(req.body.password_enc); }
       catch { return res.status(400).json({ error: 'Password terenkripsi tidak valid (server mungkin baru restart) — muat ulang halaman lalu login lagi' }); }
     } else if (req.get('authorization')?.startsWith('Basic ')) {
@@ -145,7 +145,8 @@ app.post('/auth/login', async (req, res) => {
     if (!r.json?.access_token) {
       const msg = r.json?.error?.message || r.json?.message || r.json?.detail?.message || (r.status === 401 ? 'Email / password salah' : 'Token tidak ada di respons');
       const host = server.replace(/^https?:\/\//i, '');
-      const hint = r.status === 401 ? ` — login dicoba ke server "${host}". Bila akun Anda ada di server lain (mis. go.zahironline.com), ganti isi kolom Server di halaman login.` : '';
+      // diagnosa tanpa membocorkan password: server, email yang diterima, cara kirim, panjang password, ada spasi di tepi atau tidak
+      const hint = r.status === 401 ? ` — dicoba ke server "${host}", email "${req.body.username}", password ${password.length} karakter${password !== password.trim() ? ' (ADA spasi di awal/akhir)' : ''}, dikirim via ${via}. Bila angka itu tidak sama dengan panjang password Anda, ketik ulang password (jangan autofill).` : '';
       return res.status(r.status === 200 ? 502 : r.status).json({ error: `Login gagal (HTTP ${r.status}): ${msg}${hint}` });
     }
     res.json({ server, me: r.json });
