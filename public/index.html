@@ -1217,7 +1217,7 @@ function collectFilters(){
 
 /* ---------- lookups ---------- */
 async function loadLookups(){
-  try{ const j=await zget('/api/v2/transaction_types?per_page=1000&select=type,code'); st.ttypes={}; for(const t of listOf(j)) if(t.type&&t.code) st.ttypes[t.type]=t.code; }catch{}
+  try{ const j=await zget('/api/v2/transaction_types?per_page=1000&select=type,code,name'); st.ttypes={}; for(const t of listOf(j)) if(t.type&&t.code){ st.ttypes[t.type]=t.code; st.ttypes['~'+ttNorm(t.type)]=t.code; if(t.name) st.ttypes['~'+ttNorm(t.name)]=t.code; } }catch{}
 }
 function combobox(inputSel,listSel,source,onPick,remote,selected){
   const inp=$(inputSel), box=$(listSel); let t, keep=false;
@@ -1706,7 +1706,7 @@ function ledgerColumns(report,keys,headRow){
   const cols=[...ORDER.filter(c=>keys.includes(c)),...keys.filter(c=>!ORDER.includes(c))];
   return { cols, labels:Object.fromEntries(cols.map(c=>[c,(headRow&&headRow[c])||LABELS[c]||c.replace(/_/g,' ').toUpperCase()])) };
 }
-function cell(r,c,k){ let v=r[c]; if(c==='tipe'&&k==='trx') v=st.ttypes[v]||v; return esc(v); }
+function cell(r,c,k){ let v=r[c]; if(c==='tipe'&&k==='trx') v=ttCode(st.ttypes,v)||v; return esc(v); }
 function ledgerRowHtml(r){
   const k=rowKind(r), n=R.cols.length;
   if(k==='title') return `<tr class="title"><td colspan="${n}"><span class="stk">${esc(r.kode_akun)} ${R.groups?'-':'&nbsp;·&nbsp;'} ${esc(r.nama_akun)}</span></td></tr>`;

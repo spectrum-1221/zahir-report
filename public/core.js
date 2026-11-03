@@ -202,19 +202,25 @@
       h0.push({ label: cur[g], colspan: j - i, flat: true, idr }); i = j; }   // flat: judul mata uang berwarna sama dengan header lain (biru)
     return { cols, labels, dec, heads: h1.length ? [h0, h1] : [h0.map(h => ({ ...h, rowspan: 1 }))], numeric: cols.filter(c => /^[ab]_/.test(c)) };
   }
+  // kode jenis transaksi (mis. GJ): cocokkan persis dulu, lalu bentuk ternormalisasi (huruf kecil tanpa tanda baca, tanpa 's' akhir), lalu daftar bawaan.
+  // Peta dari API (type → code, plus ~normalisasi(type|name) → code) dibuat di loadLookups.
+  const ttNorm = s => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '');
+  const TT_BUILTIN = { manualjournal: 'GJ', generaljournal: 'GJ', journal: 'GJ' };
+  const ttCode = (tt, t) => { if (t == null || t === '') return null; return (tt && (tt[t] || tt['~' + ttNorm(t)])) || TT_BUILTIN[ttNorm(t)] || null; };
   const typeName = t => String(t ?? '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   class JournalBuilder {
     constructor() { this.trx = new Map(); this.n = 0; }
     add(r) { const k = r.trx_id != null ? String(r.trx_id) : `${r.tipe}|${r.nomor}|${String(r.tanggal).slice(0, 10)}`;
       let t = this.trx.get(k); if (!t) { t = { h: r, lines: [] }; this.trx.set(k, t); } t.lines.push(r); this.n++; }
     *gen(ttypes) {
+      const r2 = v => Math.round((v + Number.EPSILON) * 100) / 100;   // nilai USD dibulatkan 2 digit per baris, jadi jumlah baris = Balance
       const cmp = (x, y) => { x = String(x ?? ''); y = String(y ?? ''); return x < y ? -1 : x > y ? 1 : 0; };
       const list = [...this.trx.values()].sort((a, b) => cmp(String(a.h.tanggal).slice(0, 10), String(b.h.tanggal).slice(0, 10)) || smartSort(a.h.nomor ?? '', b.h.nomor ?? '') || cmp(a.h.trx_id, b.h.trx_id));
       for (const t of list) {
         const h = t.h; t.lines.sort((a, b) => (Number(a.jurnal_id) || 0) - (Number(b.jurnal_id) || 0));
-        yield { __k: 'jh', tipe: (ttypes && ttypes[h.tipe]) || typeName(h.tipe), nomor: h.nomor, tanggal: String(h.tanggal ?? '').slice(0, 10), kontak: h.kontak, deskripsi: h.deskripsi, dept: h.dept_nama || '', proyek: h.proyek_kode || '' };
+        yield { __k: 'jh', tipe: ttCode(ttypes, h.tipe) || typeName(h.tipe), nomor: h.nomor, tanggal: String(h.tanggal ?? '').slice(0, 10), kontak: h.kontak, deskripsi: h.deskripsi, dept: h.dept_nama || '', proyek: h.proyek_kode || '' };
         const s = { bd: 0, bk: 0, ad: 0, ak: 0 };
-        for (const l of t.lines) { const bd = num(l.debit), bk = num(l.kredit), ad = num(l.debit_a), ak = num(l.kredit_a); s.bd += bd; s.bk += bk; s.ad += ad; s.ak += ak;
+        for (const l of t.lines) { const bd = r2(num(l.debit)), bk = r2(num(l.kredit)), ad = num(l.debit_a), ak = num(l.kredit_a); s.bd += bd; s.bk += bk; s.ad += ad; s.ak += ak;
           yield { __k: 'jd', akun: l.nama_akun, kode_akun: l.kode_akun, dept: l.dept_kode || '', b_debit: bd, b_kredit: bk, a_debit: ad, a_kredit: ak }; }
         yield { __k: 'jb', akun: 'Balance', b_debit: s.bd, b_kredit: s.bk, a_debit: s.ad, a_kredit: s.ak };
         t.lines = null;
@@ -610,5 +616,5 @@
     return r => { for (let i = 0; i < tests.length; i++) if (!tests[i](r)) return false; return true; };
   }
 
-  return { analyzeQuery, localPredicate, usedColumns, selectHonored, ymd, num, fmt, appendAll, monthChunks, yearChunks, planChunks, prevDay, KREDIT_SIDE, TrialBalance, DEFAULT_USD_CURRENCY_ID, fmtZ, tbLayout, tbFields, jrFields, jrLayout, JournalBuilder, tbAccountOpts, tbRowOpts, LABELS, COLS, VALAS_COLS, ledgerColsOf, LEDGER_NUM, LEDGER_GROUP, rowKind, LedgerBuilder, LegacyMerger, mergeChunks, SEP, smartSort, BARIS_RE, decodeBaris, Pivot, pivot, Summarizer, groupRows, totalOf, jasperTipe, jasperSplit, expandJasper, JASPER_PARTS, crosstabLayout, crosstabExportRow };
+  return { ttCode, ttNorm, analyzeQuery, localPredicate, usedColumns, selectHonored, ymd, num, fmt, appendAll, monthChunks, yearChunks, planChunks, prevDay, KREDIT_SIDE, TrialBalance, DEFAULT_USD_CURRENCY_ID, fmtZ, tbLayout, tbFields, jrFields, jrLayout, JournalBuilder, tbAccountOpts, tbRowOpts, LABELS, COLS, VALAS_COLS, ledgerColsOf, LEDGER_NUM, LEDGER_GROUP, rowKind, LedgerBuilder, LegacyMerger, mergeChunks, SEP, smartSort, BARIS_RE, decodeBaris, Pivot, pivot, Summarizer, groupRows, totalOf, jasperTipe, jasperSplit, expandJasper, JASPER_PARTS, crosstabLayout, crosstabExportRow };
 });

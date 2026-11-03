@@ -75,7 +75,7 @@ function writeRow(ex, r) {
     if (k === 'title') { const row = ws.addRow([`${vals.kode_akun}  ·  ${vals.nama_akun}`]); row.getCell(1).font = { bold: true, color: { argb: 'FF0E7FB8' }, size: 11 }; row.commit(); return; }
     if (k === 'head') { ex.headRow(); return; }
     if (k === 'blank') { ws.addRow([]).commit(); return; }
-    const row = ws.addRow(cols.map(c => { let v = vals[c]; if (c === 'tipe' && k === 'trx') v = ttypes[v] || v; return numSet.has(c) ? toNum(v) : (v ?? ''); }));
+    const row = ws.addRow(cols.map(c => { let v = vals[c]; if (c === 'tipe' && k === 'trx') v = (ttypes[v] || ttypes['~' + String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '')] || ({ manualjournal: 'GJ', generaljournal: 'GJ', journal: 'GJ' })[String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '')]) || v; return numSet.has(c) ? toNum(v) : (v ?? ''); }));
     cols.forEach((c, i) => { const cell = row.getCell(i + 1); if (numSet.has(c)) cell.numFmt = NUMFMT; if (k === 'sa') cell.fill = SA_FILL; if (k === 'tot') { cell.fill = TOT_FILL; cell.font = { bold: true }; } });
     row.commit();
   } else {
