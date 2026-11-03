@@ -178,7 +178,7 @@
   /* ---------- jurnal per transaksi (Jurnal - All Transaction) ----------
      Sumber: custom query jurnal_all_trx (satu baris per baris jurnal). Per transaksi: baris kepala (tipe, nomor, tanggal,
      kontak, deskripsi, dept, proyek), baris akun, lalu baris "Balance" (jumlah debit/kredit kedua mata uang). */
-  const JR_FIELDS = [['tipe', 'Type'], ['nomor', '#Transaction'], ['tanggal', 'Date'], ['kontak', 'Business Partner'], ['deskripsi', 'Description'],
+  const JR_FIELDS = [['tipe', 'Type'], ['nomor', '#Transaction'], ['tanggal', 'Date'], ['deskripsi', 'Description'],
     ['akun', 'Account'], ['kode_akun', 'Account code'], ['dept', 'DEPT'], ['b_debit', 'DEBIT'], ['b_kredit', 'KREDIT'], ['a_debit', 'DEBIT'], ['a_kredit', 'KREDIT'], ['proyek', 'PROJECT']];
   function jrFields(o) {
     o = o || {}; const cur = { a: o.curA || 'IDR', b: o.curB || 'USD' };

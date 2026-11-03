@@ -535,7 +535,7 @@ async function runJob(job, b) {
     const L = core.jrLayout(report.cur || {}, report.cols); const W = { tipe: 16, nomor: 16, tanggal: 11, kontak: 26, deskripsi: 40, akun: 32, kode_akun: 14, dept: 14, proyek: 14 };
     const ex = startExport({ kind: 'table', title: companyName, sub: report.title, period, cols: L.cols, labels: L.labels, numeric: L.numeric, widths: Object.fromEntries(L.cols.map(c => [c, W[c] || 15])), ttypes, fileName, heads: L.heads, dec: L.dec });
     const fc = core.tbRowOpts(b.tbOpt).code;
-    let i = 0; for (const r of JB.gen()) { if (r.kode_akun) r.kode_akun = fc(r.kode_akun); writeRow(ex, Object.assign({}, r, { __kind: r.__k === 'jh' ? 'bold' : r.__k === 'jb' ? 'tot' : 'trx' })); if (++i % 5000 === 0) await sleep(0); }
+    let i = 0; for (const r of JB.gen(ttypes)) { if (r.kode_akun) r.kode_akun = fc(r.kode_akun); writeRow(ex, Object.assign({}, r, { __kind: r.__k === 'jh' ? 'bold' : r.__k === 'jb' ? 'tot' : 'trx' })); if (++i % 5000 === 0) await sleep(0); }
     return ex;
   }
   if (mode === 'ledger') {

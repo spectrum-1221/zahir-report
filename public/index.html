@@ -1367,7 +1367,7 @@ async function runReport({force=false}={}){
       const JB=new JournalBuilder();
       try{ await runFlat(r.cq,x=>JB.add(x)); }
       catch(err){ if(/not found|tidak ditemukan|404|custom query/i.test(err.message)) throw new Error(err.message+' — custom query '+r.cq+' belum terpasang di database ini. Kembali ke daftar laporan lalu klik "Periksa custom query bawaan".'); throw err; }
-      ov.sub('Menyusun jurnal…'); await sleep(20); rows=JB.build();
+      ov.sub('Menyusun jurnal…'); await sleep(20); rows=JB.build(st.ttypes);
       const fc=tbRowOpts(await tbAccounts()).code; for(const x of rows) if(x.kode_akun) x.kode_akun=fc(x.kode_akun);   // kode akun berformat seperti di Zahir
     }
     if(!rows && mode==='ledger'){
