@@ -13,6 +13,14 @@ const NUMFMT = '#,##0.00;-#,##0.00;0';
 const toNum = v => { if (v == null || v === '') return null; const n = Number(String(v).replace(/,/g, '')); return isNaN(n) ? null : n; };
 const rowKind = r => { if (r.tanggal == null && r.kode_akun && r.tipe === r.kode_akun) return 'title'; if (r.tanggal === 'TANGGAL') return 'head'; if (r.proyek === 'Total :' || r.proyek === 'Mutasi :') return 'tot'; if (r.tipe === 'Saldo Awal' && r.tanggal) return 'sa'; if (r.tanggal == null && r.tipe == null && r.referensi == null) return 'blank'; return 'trx'; };
 const IDR_FILL = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF7A8794' } };   // kolom IDR abu-abu
+// kolom tanggal → sel tanggal asli Excel (format yyyy/mm/dd) supaya bisa difilter/diurutkan sebagai tanggal
+const DATE_COL = /(^|_)(tanggal|date|tgl)($|_)/i;
+const asDate = (c, v) => { if (typeof v !== 'string' || !DATE_COL.test(c)) return null; const m = /^(\d{4})[-\/](\d{2})[-\/](\d{2})(?:$|[T ])/.exec(v); return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : null; };
+const cv = (c, v) => asDate(c, v) || v;
+const fixDates = row => row.eachCell({ includeEmpty: false }, cell => { if (cell.value instanceof Date) { cell.numFmt = 'yyyy/mm/dd'; cell.alignment = { horizontal: 'left' }; } });
+const colL = n => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+// tombol filter (AutoFilter) di baris judul kolom; baris akhir dibuat besar karena jumlah baris belum diketahui saat streaming
+const setFilter = (ws, rowNum, ncol) => { if (!ws.__af) { ws.__af = true; ws.autoFilter = `A${rowNum}:${colL(ncol)}1048576`; } };
 const GRP_FILL = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF0E7FB8' } };   // judul kelompok USD/IDR: biru sama dengan header kolom
 // heads (opsional): header bertingkat [[{label, colspan, rowspan}], ...] — sel digabung sesuai span (dipakai trial balance)
 function writeHeads(ws, heads, ncol) {
@@ -23,6 +31,7 @@ function writeHeads(ws, heads, ncol) {
       if (cs > 1 || rs > 1) merges.push([ri, c + 1, ri + rs - 1, c + cs]); c += cs; }
     rows.push(vals); });
   const added = rows.map((v, ri) => { const r = ws.addRow(v); for (let c = 1; c <= ncol; c++) { const cell = r.getCell(c); cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = idrCell.has(ri + ':' + (c - 1)) ? IDR_FILL : ri === 0 && grp.has(c - 1) ? GRP_FILL : HEAD_FILL; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; } return r; });
+  setFilter(ws, added[added.length - 1].number, ncol);
   const first = added[0].number;   // nomor baris sebenarnya, diketahui setelah baris ditambahkan
   for (const [r1, c1, r2, c2] of merges) ws.mergeCells(first + r1, c1, first + r2, c2);   // gabung sebelum commit (writer streaming)
   added.forEach(r => r.commit());
@@ -47,10 +56,10 @@ function writeHeads(ws, heads, ncol) {
       r.eachCell((cell, n) => { cell.font = white; cell.fill = idrCols.has(n) ? IDR_FILL : HEAD_FILL; cell.alignment = { horizontal: numSet.has(cols[n - 1]) ? 'right' : 'left', vertical: 'middle' }; });
       // gabungkan sebelum commit (writer streaming tidak bisa mengubah baris yang sudah di-commit): kelompok → horizontal; kolom tanpa kelompok → vertikal (2 baris)
       i = 1; for (const g of G) { const sp = g.span || 1; if (g.label && sp > 1) ws.mergeCells(rn, i, rn, i + sp - 1); if (!g.label) for (let j = i; j < i + sp; j++) ws.mergeCells(rn, j, rn + 1, j); i += sp; }
-      top.commit(); r.commit();
+      setFilter(ws, r.number, cols.length); top.commit(); r.commit();
       return;
     }
-    const r = ws.addRow(cols.map(c => labels[c] || c)); r.eachCell(cell => { cell.font = white; cell.fill = HEAD_FILL; }); r.commit(); };
+    const r = ws.addRow(cols.map(c => labels[c] || c)); r.eachCell(cell => { cell.font = white; cell.fill = HEAD_FILL; }); setFilter(ws, r.number, cols.length); r.commit(); };
   if (Array.isArray(heads) && heads.length) writeHeads(ws, heads, cols.length);
   else if (kind !== 'ledger' && !grouped) headRow();
   // format angka per kolom (jumlah desimal), bawaan NUMFMT
@@ -68,18 +77,20 @@ function writeRow(ex, r) {
     if (k === 'gtitle') { const row = ws.addRow([' '.repeat(glvl * 3) + glabel]); row.getCell(1).font = { bold: true, color: { argb: 'FF0E7FB8' }, size: 11 }; row.commit(); ex.rows++; return; }
     if (k === 'ghead') { ex.headRow(); ex.rows++; return; }
     if (k === 'blank') { ws.addRow([]).commit(); ex.rows++; return; }
-    if (k === 'bold') { const row = ws.addRow(cols.map(c => numSet.has(c) ? toNum(vals[c]) : (vals[c] ?? ''))); cols.forEach((c, i) => { const cell = row.getCell(i + 1); cell.font = { bold: true }; cell.fill = SA_FILL; if (numSet.has(c)) cell.numFmt = ex.fmtOf(c); }); row.commit(); ex.rows++; return; }
+    if (k === 'bold') { const row = ws.addRow(cols.map(c => numSet.has(c) ? toNum(vals[c]) : cv(c, vals[c] ?? ''))); fixDates(row); cols.forEach((c, i) => { const cell = row.getCell(i + 1); cell.font = { bold: true }; cell.fill = SA_FILL; if (numSet.has(c)) cell.numFmt = ex.fmtOf(c); }); row.commit(); ex.rows++; return; }
     if (k === 'gtot' || k === 'tot') { const first = cols.find(c => !numSet.has(c)); const hasText = cols.some(c => c !== first && !numSet.has(c) && vals[c] != null && vals[c] !== ''); const row = ws.addRow(cols.map(c => c === first ? (glabel || vals[c] || (hasText ? '' : 'Total')) : numSet.has(c) ? toNum(vals[c]) : ((c === '__label' || c === '__kode' || /\.(kode|nama|tipe|lvl|sort)$/.test(c)) ? '' : (vals[c] ?? '')))); cols.forEach((c, i) => { const cell = row.getCell(i + 1); if (numSet.has(c)) cell.numFmt = ex.fmtOf(c); cell.fill = TOT_FILL; cell.font = { bold: true }; }); row.commit(); ex.rows++; return; }
   }
   if (kind === 'ledger') {
     if (k === 'title') { const row = ws.addRow([`${vals.kode_akun}  ·  ${vals.nama_akun}`]); row.getCell(1).font = { bold: true, color: { argb: 'FF0E7FB8' }, size: 11 }; row.commit(); return; }
     if (k === 'head') { ex.headRow(); return; }
     if (k === 'blank') { ws.addRow([]).commit(); return; }
-    const row = ws.addRow(cols.map(c => { let v = vals[c]; if (c === 'tipe' && k === 'trx') v = (ttypes[v] || ttypes['~' + String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '')] || ({ manualjournal: 'GJ', generaljournal: 'GJ', journal: 'GJ' })[String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '')]) || v; return numSet.has(c) ? toNum(v) : (v ?? ''); }));
+    const row = ws.addRow(cols.map(c => { let v = vals[c]; if (c === 'tipe' && k === 'trx') v = (ttypes[v] || ttypes['~' + String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '')] || ({ manualjournal: 'GJ', generaljournal: 'GJ', journal: 'GJ' })[String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '')]) || v; return numSet.has(c) ? toNum(v) : (k === 'trx' || k === 'sa' ? cv(c, v ?? '') : (v ?? '')); }));
+    fixDates(row);
     cols.forEach((c, i) => { const cell = row.getCell(i + 1); if (numSet.has(c)) cell.numFmt = NUMFMT; if (k === 'sa') cell.fill = SA_FILL; if (k === 'tot') { cell.fill = TOT_FILL; cell.font = { bold: true }; } });
     row.commit();
   } else {
-    const row = ws.addRow(cols.map(c => numSet.has(c) ? toNum(vals[c]) : (vals[c] ?? '')));
+    const row = ws.addRow(cols.map(c => numSet.has(c) ? toNum(vals[c]) : cv(c, vals[c] ?? '')));
+    fixDates(row);
     cols.forEach((c, i) => { if (numSet.has(c)) row.getCell(i + 1).numFmt = ex.fmtOf(c); }); row.commit();
   }
   ex.rows++;

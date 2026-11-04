@@ -97,11 +97,11 @@
         yield (base(g, { tipe: g.kode, referensi: g.nama }));
         yield (base(g, head));
         yield (base(g, V ? { tanggal: 'Saldo Awal', saldo: F(g.sa), saldo_usd: usdAcc(g) ? null : F(g.saA) }
-          : { tanggal: prevStr, tipe: 'Saldo Awal', debit: '0', kredit: '0', saldo: fmt(g.sa) }));
+          : { tanggal: dateSlash(prevStr) || prevStr, tipe: 'Saldo Awal', debit: '0', kredit: '0', saldo: fmt(g.sa) }));
         let run = g.sa, totD = 0, totK = 0, runA = g.saA, totDA = 0, totKA = 0;
         for (const r of g.trx) {
           const d = num(r.debit), kk = num(r.kredit); totD += d; totK += kk; run += this._sgn(g, d, kk);
-          const row = { tanggal: V ? dateZ(r.tanggal) : String(r.tanggal).slice(0, 10), tipe: r.tipe, referensi: r.referensi, kontak: V && !r.kontak ? '-' : r.kontak, deskripsi: r.deskripsi, dept: r.dept, proyek: r.proyek, faktur_pajak: r.faktur_pajak, no_invoice: r.no_invoice, debit: F(d), kredit: F(kk), saldo: F(run) };
+          const row = { tanggal: dateSlash(r.tanggal) || (V ? dateZ(r.tanggal) : String(r.tanggal).slice(0, 10)), tipe: r.tipe, referensi: r.referensi, kontak: V && !r.kontak ? '-' : r.kontak, deskripsi: r.deskripsi, dept: r.dept, proyek: r.proyek, faktur_pajak: r.faktur_pajak, no_invoice: r.no_invoice, debit: F(d), kredit: F(kk), saldo: F(run) };
           if (V) {
             const da = num(r.debit_a), ka = num(r.kredit_a);
             // JRXML: is_usd_trx = kode mata uang transaksi ada dan bukan IDR → blok nilai asli (DEBIT_A/KREDIT_A/SALDO) kosong dan
@@ -207,6 +207,9 @@
   const ttNorm = s => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '');
   const TT_BUILTIN = { manualjournal: 'GJ', generaljournal: 'GJ', journal: 'GJ' };
   const ttCode = (tt, t) => { if (t == null || t === '') return null; return (tt && (tt[t] || tt['~' + ttNorm(t)])) || TT_BUILTIN[ttNorm(t)] || null; };
+  // tanggal tampil yyyy/mm/dd (semua laporan)
+  const DATE_COL_RE = /(^|_)(tanggal|date|tgl)($|_)/i;
+  const dateSlash = v => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v ?? '')); return m ? `${m[1]}/${m[2]}/${m[3]}` : null; };
   const typeName = t => String(t ?? '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   class JournalBuilder {
     constructor() { this.trx = new Map(); this.n = 0; }
@@ -218,7 +221,7 @@
       const list = [...this.trx.values()].sort((a, b) => cmp(String(a.h.tanggal).slice(0, 10), String(b.h.tanggal).slice(0, 10)) || smartSort(a.h.nomor ?? '', b.h.nomor ?? '') || cmp(a.h.trx_id, b.h.trx_id));
       for (const t of list) {
         const h = t.h; t.lines.sort((a, b) => (Number(a.jurnal_id) || 0) - (Number(b.jurnal_id) || 0));
-        yield { __k: 'jh', tipe: ttCode(ttypes, h.tipe) || typeName(h.tipe), nomor: h.nomor, tanggal: String(h.tanggal ?? '').slice(0, 10), kontak: h.kontak, deskripsi: h.deskripsi, dept: h.dept_nama || '', proyek: h.proyek_kode || '' };
+        yield { __k: 'jh', tipe: ttCode(ttypes, h.tipe) || typeName(h.tipe), nomor: h.nomor, tanggal: dateSlash(h.tanggal) || String(h.tanggal ?? '').slice(0, 10), kontak: h.kontak, deskripsi: h.deskripsi, dept: h.dept_nama || '', proyek: h.proyek_kode || '' };
         const s = { bd: 0, bk: 0, ad: 0, ak: 0 };
         for (const l of t.lines) { const bd = r2(num(l.debit)), bk = r2(num(l.kredit)), ad = num(l.debit_a), ak = num(l.kredit_a); s.bd += bd; s.bk += bk; s.ad += ad; s.ak += ak;
           yield { __k: 'jd', akun: l.nama_akun, kode_akun: l.kode_akun, dept: l.dept_kode || '', b_debit: bd, b_kredit: bk, a_debit: ad, a_kredit: ak }; }
@@ -616,5 +619,5 @@
     return r => { for (let i = 0; i < tests.length; i++) if (!tests[i](r)) return false; return true; };
   }
 
-  return { ttCode, ttNorm, analyzeQuery, localPredicate, usedColumns, selectHonored, ymd, num, fmt, appendAll, monthChunks, yearChunks, planChunks, prevDay, KREDIT_SIDE, TrialBalance, DEFAULT_USD_CURRENCY_ID, fmtZ, tbLayout, tbFields, jrFields, jrLayout, JournalBuilder, tbAccountOpts, tbRowOpts, LABELS, COLS, VALAS_COLS, ledgerColsOf, LEDGER_NUM, LEDGER_GROUP, rowKind, LedgerBuilder, LegacyMerger, mergeChunks, SEP, smartSort, BARIS_RE, decodeBaris, Pivot, pivot, Summarizer, groupRows, totalOf, jasperTipe, jasperSplit, expandJasper, JASPER_PARTS, crosstabLayout, crosstabExportRow };
+  return { dateSlash, DATE_COL_RE, ttCode, ttNorm, analyzeQuery, localPredicate, usedColumns, selectHonored, ymd, num, fmt, appendAll, monthChunks, yearChunks, planChunks, prevDay, KREDIT_SIDE, TrialBalance, DEFAULT_USD_CURRENCY_ID, fmtZ, tbLayout, tbFields, jrFields, jrLayout, JournalBuilder, tbAccountOpts, tbRowOpts, LABELS, COLS, VALAS_COLS, ledgerColsOf, LEDGER_NUM, LEDGER_GROUP, rowKind, LedgerBuilder, LegacyMerger, mergeChunks, SEP, smartSort, BARIS_RE, decodeBaris, Pivot, pivot, Summarizer, groupRows, totalOf, jasperTipe, jasperSplit, expandJasper, JASPER_PARTS, crosstabLayout, crosstabExportRow };
 });
