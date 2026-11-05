@@ -440,11 +440,11 @@ const JOBS = new Map();
 const LEDGER_WIDTHS = { tanggal:11, tipe:7, referensi:14, kontak:24, deskripsi:48, dept:12, proyek:14, faktur_pajak:22, no_invoice:20, debit:16, kredit:16, saldo:18, kurs:11, debit_usd:16, kredit_usd:16, saldo_usd:18 };
 // kolom buku besar untuk Excel; valas=true → kolom USD ikut + header 2 tingkat (label "DEBIT (USD)" → "DEBIT" di bawah judul kelompok)
 function ledgerExportCols(report, valas) {
-  const all = core.ledgerColsOf(true);
+  const all = core.ledgerColsAll;
   const des = (report.cols || []).filter(c => all.includes(c.key) && (valas || !core.VALAS_COLS.includes(c.key)));
   const cols = des.length ? des.filter(c => c.show !== false).map(c => c.key) : core.ledgerColsOf(valas);
   const lab = Object.fromEntries(des.map(c => [c.key, c.label]));
-  const labels = Object.fromEntries(cols.map(c => [c, lab[c] || core.LABELS[c] || c]));
+  const labels = Object.fromEntries(cols.map(c => [c, core.ledgerLabelOf(valas, c, lab[c])]));
   if (!valas || !cols.some(c => core.VALAS_COLS.includes(c))) return { cols, labels, groups: null };
   const groups = []; for (const c of cols) { const g = core.LEDGER_GROUP[c] || null; const last = groups[groups.length - 1]; if (last && g && last.label === g) last.span++; else groups.push({ label: g, span: 1 }); }
   for (const c of cols) if (core.LEDGER_GROUP[c]) labels[c] = String(labels[c]).replace(/\s*\((USD|IDR)\)\s*$/i, '');

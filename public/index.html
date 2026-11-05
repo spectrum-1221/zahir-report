@@ -733,7 +733,7 @@ function builtinReports(){ return CATALOG.flatMap(c=>c.items.map(i=>({...i,categ
 function allReports(){ const ov=new Set(CUSTOM.map(x=>x.id)); return [...builtinReports().filter(b=>!ov.has(b.id)), ...CUSTOM]; }
 // desain awal laporan bawaan (bisa diubah di perancang; disimpan sebagai desain kustom dengan id yang sama)
 // valas: kolom USD ikut bila diminta, atau desain lama sudah memuatnya
-const ledgerFields=(old=[],valas)=>{ const m=new Map(old.map(c=>[c.key,c])); const v=valas??old.some(c=>VALAS_COLS.includes(c.key)); return ledgerColsOf(v).map(k=>({key:k,label:m.get(k)?.label||LABELS[k],show:m.get(k)?.show!==false})); };
+const ledgerFields=(old=[],valas)=>{ const m=new Map(old.map(c=>[c.key,c])); const v=valas??old.some(c=>VALAS_COLS.includes(c.key)); return ledgerColsOf(v).map(k=>({key:k,label:ledgerLabelOf(v,k,m.get(k)?.label),show:m.get(k)?.show!==false})); };
 const builtinFilters=b=>Array.isArray(b.filters)?filtersOf(b).map(f=>({...f})):BUILTIN_FILTERS.map(f=>({...f}));
 function builtinAsDesign(b){
   if(b.mode==='tb'||b.mode==='journal') return { id:b.id, title:b.title, category:b.category, custom:true, mode:b.mode, cq:b.cq, cur:{...(b.cur||{})}, filters:builtinFilters(b), cols:(b.mode==='tb'?tbFields(b.cur):jrFields(b.cur)).map(f=>({key:f.key,label:f.label,show:true})), fetch:b.mode==='tb'?'once':'monthly' };
@@ -1681,7 +1681,7 @@ function renderCrosstab(rows,d1,d2){
 /* ---------- render buku besar ---------- */
 const HIDE=new Set(['kode_akun','nama_akun','urutan','account_id','noklasifikasi','jurnal_id']);
 const NUM=new Set(LEDGER_NUM);
-const ORDER=ledgerColsOf(true);
+const ORDER=ledgerColsAll;
 const WIDTH={tanggal:7,tipe:6.5,referensi:8,kontak:9.5,deskripsi:14,dept:6,proyek:6,faktur_pajak:9,no_invoice:8,debit:9,kredit:9,saldo:9.5,debit_usd:9,kredit_usd:9,saldo_usd:9.5};  // persen — kolom angka cukup untuk nilai ratusan juta/miliar (total)
 // header 2 tingkat (NILAI USD / NILAI IDR) bila kolom USD tampil: [{label, span, cols}] berurutan; kolom tanpa kelompok label=null
 function ledgerGroups(cols){

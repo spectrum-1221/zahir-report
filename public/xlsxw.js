@@ -11,7 +11,7 @@ const SA_FILL   = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFEEF5F9' }
 const TOT_FILL  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFDBE9F3' } };
 const NUMFMT = '#,##0.00;-#,##0.00;0';
 const toNum = v => { if (v == null || v === '') return null; const n = Number(String(v).replace(/,/g, '')); return isNaN(n) ? null : n; };
-const rowKind = r => { if (r.tanggal == null && r.kode_akun && r.tipe === r.kode_akun) return 'title'; if (r.tanggal === 'TANGGAL') return 'head'; if (r.proyek === 'Total :' || r.proyek === 'Mutasi :') return 'tot'; if (r.tipe === 'Saldo Awal' && r.tanggal) return 'sa'; if (r.tanggal == null && r.tipe == null && r.referensi == null) return 'blank'; return 'trx'; };
+const rowKind = r => { if (r.tanggal == null && r.kode_akun && r.tipe === r.kode_akun) return 'title'; if (r.tanggal === 'TANGGAL' || (r.tanggal === 'DATE' && r.tipe === 'TYPE')) return 'head'; if (r.proyek === 'Total :' || r.proyek === 'Mutasi :') return 'tot'; if (r.tipe === 'Saldo Awal' && r.tanggal) return 'sa'; if (r.tanggal == null && r.tipe == null && r.referensi == null) return 'blank'; return 'trx'; };
 const IDR_FILL = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF7A8794' } };   // kolom IDR abu-abu
 // kolom tanggal → sel tanggal asli Excel (format yyyy/mm/dd) supaya bisa difilter/diurutkan sebagai tanggal
 const DATE_COL = /(^|_)(tanggal|date|tgl)($|_)/i;

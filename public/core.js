@@ -38,6 +38,9 @@
   const KREDIT_SIDE = new Set(['2', '3', '4', '8']);
   const LABELS = { tanggal: 'TANGGAL', tipe: 'TIPE', referensi: 'REFERENSI', kontak: 'KONTAK', deskripsi: 'DESKRIPSI', dept: 'DEPT', proyek: 'PROYEK', faktur_pajak: 'NO FAKTUR PAJAK', no_invoice: 'NO INVOICE', debit: 'DEBIT', kredit: 'KREDIT', saldo: 'SALDO',
     debit_usd: 'DEBIT_A', kredit_usd: 'KREDIT_A', saldo_usd: 'SALDO' };
+  // judul kolom Buku Besar Valas (bahasa Inggris, sama dengan Zahir Online); kolom NO FAKTUR PAJAK / NO INVOICE tidak dipakai di laporan valas
+  const VALAS_LABELS = Object.assign({}, LABELS, { tanggal: 'DATE', tipe: 'TYPE', referensi: 'REFERENCE', deskripsi: 'DESCRIPTION', proyek: 'PROJECT', kredit: 'CREDIT', saldo: 'BALANCE', saldo_usd: 'BALANCE' });
+  const ledgerLabelOf = (valas, k, saved) => (saved && !(valas && saved === LABELS[k])) ? saved : (valas ? VALAS_LABELS : LABELS)[k] || k;   // judul simpanan lama yang sama dengan bawaan lama ikut diganti
   // kolom buku besar biasa (IDR)
   const COLS = ['tanggal', 'tipe', 'referensi', 'kontak', 'deskripsi', 'dept', 'proyek', 'faktur_pajak', 'no_invoice', 'debit', 'kredit', 'saldo'];
   // buku besar valas (tampilan sama dengan General Ledger - Advance di Zahir Online): blok "USD" = mata uang dasar (debit/kredit/saldo),
@@ -46,7 +49,8 @@
   // ID mata uang USD (currency_id transaksi). Transaksi bermata uang ini TIDAK menampilkan blok nilai asli (DEBIT_A/KREDIT_A/SALDO) —
   // sama dengan aturan di JRXML General Ledger Advance. Bisa diganti: env USD_CURRENCY_ID (server) → dikirim ke browser lewat /version.
   const DEFAULT_USD_CURRENCY_ID = 'fdbc942a-81dc-42f3-8f77-0774358dc084';
-  const ledgerColsOf = valas => valas ? [...COLS, ...VALAS_COLS] : COLS.slice();
+  const ledgerColsAll = [...COLS, ...VALAS_COLS];   // semua kunci yang mungkin
+  const ledgerColsOf = valas => valas ? [...COLS.filter(c => c !== 'faktur_pajak' && c !== 'no_invoice'), ...VALAS_COLS] : COLS.slice();
   const LEDGER_NUM = ['debit', 'kredit', 'saldo', ...VALAS_COLS];
   // judul kelompok header 2 tingkat (kolom tanpa kelompok memakai rowspan)
   const LEDGER_GROUP = { debit: 'USD', kredit: 'USD', saldo: 'USD', debit_usd: 'IDR', kredit_usd: 'IDR', saldo_usd: 'IDR' };
@@ -56,7 +60,7 @@
   const dateZ = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s ?? '')); return m ? `${MON[+m[2] - 1]} ${+m[3]}, ${m[1]}` : String(s ?? ''); };
   function rowKind(r) {
     if (r.tanggal == null && r.kode_akun && r.tipe === r.kode_akun) return 'title';
-    if (r.tanggal === 'TANGGAL') return 'head';
+    if (r.tanggal === 'TANGGAL' || (r.tanggal === 'DATE' && r.tipe === 'TYPE')) return 'head';
     if (r.proyek === 'Total :' || r.proyek === 'Mutasi :') return 'tot';
     if ((r.tipe === 'Saldo Awal' || r.tanggal === 'Saldo Awal') && r.tanggal) return 'sa';
     if (r.tanggal == null && r.tipe == null && r.referensi == null) return 'blank';
@@ -86,7 +90,7 @@
       // akun bermata uang USD (dari daftar akun API): saldo awal & total nilai asli tidak ditampilkan (is_usd_account di JRXML)
       const usdAcc = g => this.accCur[String(g.kode ?? '').replace(/[^0-9a-z]/gi, '').toLowerCase()] === 'USD';
       const keys = ledgerColsOf(V); const empty = { kode_akun: null, nama_akun: null }; for (const c of keys) empty[c] = null;
-      const head = Object.fromEntries(keys.map(c => [c, LABELS[c]]));
+      const head = Object.fromEntries(keys.map(c => [c, (V ? VALAS_LABELS : LABELS)[c]]));
       const base = (g, extra) => Object.assign({}, empty, { kode_akun: g.kode, nama_akun: g.nama }, extra);
       const F = V ? fmtZ : fmt;   // buku besar valas memakai format angka Zahir
       const curOf = id => { id = String(id ?? '').toLowerCase(); return !id ? '' : id === usdId ? 'USD' : (this.curCode[id] || ''); };
@@ -101,7 +105,8 @@
         let run = g.sa, totD = 0, totK = 0, runA = g.saA, totDA = 0, totKA = 0;
         for (const r of g.trx) {
           const d = num(r.debit), kk = num(r.kredit); totD += d; totK += kk; run += this._sgn(g, d, kk);
-          const row = { tanggal: dateSlash(r.tanggal) || (V ? dateZ(r.tanggal) : String(r.tanggal).slice(0, 10)), tipe: r.tipe, referensi: r.referensi, kontak: V && !r.kontak ? '-' : r.kontak, deskripsi: r.deskripsi, dept: r.dept, proyek: r.proyek, faktur_pajak: r.faktur_pajak, no_invoice: r.no_invoice, debit: F(d), kredit: F(kk), saldo: F(run) };
+          const row = { tanggal: dateSlash(r.tanggal) || (V ? dateZ(r.tanggal) : String(r.tanggal).slice(0, 10)), tipe: r.tipe, referensi: r.referensi, kontak: V && !r.kontak ? '-' : r.kontak, deskripsi: r.deskripsi, dept: r.dept, proyek: r.proyek, debit: F(d), kredit: F(kk), saldo: F(run) };
+          if (!V) { row.faktur_pajak = r.faktur_pajak; row.no_invoice = r.no_invoice; }
           if (V) {
             const da = num(r.debit_a), ka = num(r.kredit_a);
             // JRXML: is_usd_trx = kode mata uang transaksi ada dan bukan IDR → blok nilai asli (DEBIT_A/KREDIT_A/SALDO) kosong dan
@@ -619,5 +624,5 @@
     return r => { for (let i = 0; i < tests.length; i++) if (!tests[i](r)) return false; return true; };
   }
 
-  return { dateSlash, DATE_COL_RE, ttCode, ttNorm, analyzeQuery, localPredicate, usedColumns, selectHonored, ymd, num, fmt, appendAll, monthChunks, yearChunks, planChunks, prevDay, KREDIT_SIDE, TrialBalance, DEFAULT_USD_CURRENCY_ID, fmtZ, tbLayout, tbFields, jrFields, jrLayout, JournalBuilder, tbAccountOpts, tbRowOpts, LABELS, COLS, VALAS_COLS, ledgerColsOf, LEDGER_NUM, LEDGER_GROUP, rowKind, LedgerBuilder, LegacyMerger, mergeChunks, SEP, smartSort, BARIS_RE, decodeBaris, Pivot, pivot, Summarizer, groupRows, totalOf, jasperTipe, jasperSplit, expandJasper, JASPER_PARTS, crosstabLayout, crosstabExportRow };
+  return { VALAS_LABELS, ledgerLabelOf, ledgerColsAll, dateSlash, DATE_COL_RE, ttCode, ttNorm, analyzeQuery, localPredicate, usedColumns, selectHonored, ymd, num, fmt, appendAll, monthChunks, yearChunks, planChunks, prevDay, KREDIT_SIDE, TrialBalance, DEFAULT_USD_CURRENCY_ID, fmtZ, tbLayout, tbFields, jrFields, jrLayout, JournalBuilder, tbAccountOpts, tbRowOpts, LABELS, COLS, VALAS_COLS, ledgerColsOf, LEDGER_NUM, LEDGER_GROUP, rowKind, LedgerBuilder, LegacyMerger, mergeChunks, SEP, smartSort, BARIS_RE, decodeBaris, Pivot, pivot, Summarizer, groupRows, totalOf, jasperTipe, jasperSplit, expandJasper, JASPER_PARTS, crosstabLayout, crosstabExportRow };
 });
