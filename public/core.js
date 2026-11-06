@@ -40,6 +40,8 @@
     debit_usd: 'DEBIT_A', kredit_usd: 'KREDIT_A', saldo_usd: 'SALDO' };
   // judul kolom Buku Besar Valas (bahasa Inggris, sama dengan Zahir Online); kolom NO FAKTUR PAJAK / NO INVOICE tidak dipakai di laporan valas
   const VALAS_LABELS = Object.assign({}, LABELS, { tanggal: 'DATE', tipe: 'TYPE', referensi: 'REFERENCE', deskripsi: 'DESCRIPTION', proyek: 'PROJECT', kredit: 'CREDIT', kredit_usd: 'CREDIT_A', saldo: 'BALANCE', saldo_usd: 'BALANCE' });
+  // kode akun polos (angka saja, ≥5 digit) diberi pemisah setelah 4 digit pertama: 1111200000 → 1111-200000; kode yang sudah bertanda baca dibiarkan
+  const fmtKode = k => { const s = String(k ?? '').trim(); return /^\d{5,}$/.test(s) ? s.slice(0, 4) + '-' + s.slice(4) : (k ?? ''); };
   const LEGACY_LABEL = { KREDIT: 'CREDIT', DESKRIPSI: 'DESCRIPTION', KREDIT_A: 'CREDIT_A' };   // judul lama yang tersimpan di desain → judul baru
   const newLabel = s => s && Object.prototype.hasOwnProperty.call(LEGACY_LABEL, s) ? LEGACY_LABEL[s] : s;
   const ledgerLabelOf = (valas, k, saved) => (saved && !(valas && saved === LABELS[k])) ? newLabel(saved) : (valas ? VALAS_LABELS : LABELS)[k] || k;   // judul simpanan lama yang sama dengan bawaan lama ikut diganti
@@ -93,14 +95,14 @@
       const usdAcc = g => this.accCur[String(g.kode ?? '').replace(/[^0-9a-z]/gi, '').toLowerCase()] === 'USD';
       const keys = ledgerColsOf(V); const empty = { kode_akun: null, nama_akun: null }; for (const c of keys) empty[c] = null;
       const head = Object.fromEntries(keys.map(c => [c, (V ? VALAS_LABELS : LABELS)[c]]));
-      const base = (g, extra) => Object.assign({}, empty, { kode_akun: g.kode, nama_akun: g.nama }, extra);
+      const base = (g, extra) => Object.assign({}, empty, { kode_akun: fmtKode(g.kode), nama_akun: g.nama }, extra);
       const F = V ? fmtZ : fmt;   // buku besar valas memakai format angka Zahir
       const curOf = id => { id = String(id ?? '').toLowerCase(); return !id ? '' : id === usdId ? 'USD' : (this.curCode[id] || ''); };
       for (const k of [...this.acc.keys()].sort()) {
         const g = this.acc.get(k); if (V ? !g.trx.length : (!g.trx.length && Math.abs(g.sa) < 0.005 && Math.abs(g.saA) < 0.005)) { this.acc.delete(k); continue; }   // valas: seperti filterExpression JRXML — akun tanpa transaksi pada periode tidak dicetak
         const cmp = (x, y) => { x = String(x ?? ''); y = String(y ?? ''); return x < y ? -1 : x > y ? 1 : 0; };
         g.trx.sort((a, b) => cmp(a.tanggal, b.tanggal) || cmp(a.referensi, b.referensi) || cmp(a.jurnal_id, b.jurnal_id));
-        yield (base(g, { tipe: g.kode, referensi: g.nama }));
+        yield (base(g, { tipe: fmtKode(g.kode), referensi: g.nama }));
         yield (base(g, head));
         yield (base(g, V ? { tanggal: 'Saldo Awal', saldo: F(g.sa), saldo_usd: usdAcc(g) ? null : F(g.saA) }
           : { tanggal: dateSlash(prevStr) || prevStr, tipe: 'Saldo Awal', debit: '0', kredit: '0', saldo: fmt(g.sa) }));
@@ -231,7 +233,7 @@
         yield { __k: 'jh', tipe: ttCode(ttypes, h.tipe) || typeName(h.tipe), nomor: h.nomor, tanggal: dateSlash(h.tanggal) || String(h.tanggal ?? '').slice(0, 10), kontak: h.kontak, deskripsi: h.deskripsi, dept: h.dept_nama || '', proyek: h.proyek_kode || '' };
         const s = { bd: 0, bk: 0, ad: 0, ak: 0 };
         for (const l of t.lines) { const bd = r2(num(l.debit)), bk = r2(num(l.kredit)), ad = num(l.debit_a), ak = num(l.kredit_a); s.bd += bd; s.bk += bk; s.ad += ad; s.ak += ak;
-          yield { __k: 'jd', akun: l.nama_akun, kode_akun: l.kode_akun, dept: l.dept_kode || '', b_debit: bd, b_kredit: bk, a_debit: ad, a_kredit: ak }; }
+          yield { __k: 'jd', akun: l.nama_akun, kode_akun: fmtKode(l.kode_akun), dept: l.dept_kode || '', b_debit: bd, b_kredit: bk, a_debit: ad, a_kredit: ak }; }
         yield { __k: 'jb', akun: 'Balance', b_debit: s.bd, b_kredit: s.bk, a_debit: s.ad, a_kredit: s.ak };
         t.lines = null;
       }
@@ -254,7 +256,7 @@
     addMut(r) { const g = this._get(r); g.md.b += num(r.debit); g.mk.b += num(r.kredit); g.md.a += num(r.debit_a); g.mk.a += num(r.kredit_a); }
     // net mutation mengikuti sisi normal akun (kewajiban/modal/pendapatan: kredit − debit), sama dengan Zahir
     static row(g, code) {
-      const o = { kode_akun: code || g.kode, nama_akun: g.nama }; const r2 = v => Math.round(v * 100) / 100 || 0; const pos = v => v > 0.004 ? r2(v) : 0, neg = v => v < -0.004 ? r2(-v) : 0;
+      const o = { kode_akun: fmtKode(code || g.kode), nama_akun: g.nama }; const r2 = v => Math.round(v * 100) / 100 || 0; const pos = v => v > 0.004 ? r2(v) : 0, neg = v => v < -0.004 ? r2(-v) : 0;
       const ks = KREDIT_SIDE.has(g.kls);
       for (const p of ['a', 'b']) { const dk = g.md[p] - g.mk[p], end = g.sa[p] + dk;
         o[p + '_bd'] = pos(g.sa[p]); o[p + '_bk'] = neg(g.sa[p]); o[p + '_md'] = r2(g.md[p]); o[p + '_mk'] = r2(g.mk[p]); o[p + '_net'] = r2(ks ? -dk : dk); o[p + '_ed'] = pos(end); o[p + '_ek'] = neg(end); }
@@ -297,7 +299,7 @@
   function tbRowOpts(o) {
     o = o || {}; const norm = c => String(c ?? '').replace(/[^0-9a-z]/gi, '').toLowerCase(); const codes = o.codes || {};
     // kunci akun = kode mentah dari query; akun L/B dan L/D dicari dengan kode mentah yang sama (tanpa tanda baca)
-    return { cy: o.cy ? { kode: o.cy.kode, nama: o.cy.nama } : null, re: o.re ? { kode: o.re.kode, nama: o.re.nama } : null, code: k => codes[norm(k)] || k, norm };
+    return { cy: o.cy ? { kode: o.cy.kode, nama: o.cy.nama } : null, re: o.re ? { kode: o.re.kode, nama: o.re.nama } : null, code: k => fmtKode(codes[norm(k)] || k), norm };
   }
   // Mode lama (custom query buku besar yang sudah jadi, mis. buku_besar_faktur_invoice): baris datang per potongan tanggal,
   // dikelompokkan per akun begitu tiba, lalu digabung menjadi satu buku besar utuh
@@ -626,5 +628,5 @@
     return r => { for (let i = 0; i < tests.length; i++) if (!tests[i](r)) return false; return true; };
   }
 
-  return { newLabel, VALAS_LABELS, ledgerLabelOf, ledgerColsAll, dateSlash, DATE_COL_RE, ttCode, ttNorm, analyzeQuery, localPredicate, usedColumns, selectHonored, ymd, num, fmt, appendAll, monthChunks, yearChunks, planChunks, prevDay, KREDIT_SIDE, TrialBalance, DEFAULT_USD_CURRENCY_ID, fmtZ, tbLayout, tbFields, jrFields, jrLayout, JournalBuilder, tbAccountOpts, tbRowOpts, LABELS, COLS, VALAS_COLS, ledgerColsOf, LEDGER_NUM, LEDGER_GROUP, rowKind, LedgerBuilder, LegacyMerger, mergeChunks, SEP, smartSort, BARIS_RE, decodeBaris, Pivot, pivot, Summarizer, groupRows, totalOf, jasperTipe, jasperSplit, expandJasper, JASPER_PARTS, crosstabLayout, crosstabExportRow };
+  return { fmtKode, newLabel, VALAS_LABELS, ledgerLabelOf, ledgerColsAll, dateSlash, DATE_COL_RE, ttCode, ttNorm, analyzeQuery, localPredicate, usedColumns, selectHonored, ymd, num, fmt, appendAll, monthChunks, yearChunks, planChunks, prevDay, KREDIT_SIDE, TrialBalance, DEFAULT_USD_CURRENCY_ID, fmtZ, tbLayout, tbFields, jrFields, jrLayout, JournalBuilder, tbAccountOpts, tbRowOpts, LABELS, COLS, VALAS_COLS, ledgerColsOf, LEDGER_NUM, LEDGER_GROUP, rowKind, LedgerBuilder, LegacyMerger, mergeChunks, SEP, smartSort, BARIS_RE, decodeBaris, Pivot, pivot, Summarizer, groupRows, totalOf, jasperTipe, jasperSplit, expandJasper, JASPER_PARTS, crosstabLayout, crosstabExportRow };
 });
