@@ -441,7 +441,7 @@ const LEDGER_WIDTHS = { tanggal:11, tipe:7, referensi:14, kontak:24, deskripsi:4
 // kolom buku besar untuk Excel; valas=true → kolom USD ikut + header 2 tingkat (label "DEBIT (USD)" → "DEBIT" di bawah judul kelompok)
 function ledgerExportCols(report, valas) {
   const all = core.ledgerColsAll;
-  const des = (report.cols || []).filter(c => all.includes(c.key) && (valas || !core.VALAS_COLS.includes(c.key)));
+  const des = (report.cols || []).filter(c => all.includes(c.key) && (valas ? core.ledgerColsOf(true).includes(c.key) : !core.VALAS_COLS.includes(c.key)));
   const cols = des.length ? des.filter(c => c.show !== false).map(c => c.key) : core.ledgerColsOf(valas);
   const lab = Object.fromEntries(des.map(c => [c.key, c.label]));
   const labels = Object.fromEntries(cols.map(c => [c, core.ledgerLabelOf(valas, c, lab[c])]));

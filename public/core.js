@@ -39,8 +39,10 @@
   const LABELS = { tanggal: 'TANGGAL', tipe: 'TIPE', referensi: 'REFERENSI', kontak: 'KONTAK', deskripsi: 'DESKRIPSI', dept: 'DEPT', proyek: 'PROYEK', faktur_pajak: 'NO FAKTUR PAJAK', no_invoice: 'NO INVOICE', debit: 'DEBIT', kredit: 'KREDIT', saldo: 'SALDO',
     debit_usd: 'DEBIT_A', kredit_usd: 'KREDIT_A', saldo_usd: 'SALDO' };
   // judul kolom Buku Besar Valas (bahasa Inggris, sama dengan Zahir Online); kolom NO FAKTUR PAJAK / NO INVOICE tidak dipakai di laporan valas
-  const VALAS_LABELS = Object.assign({}, LABELS, { tanggal: 'DATE', tipe: 'TYPE', referensi: 'REFERENCE', deskripsi: 'DESCRIPTION', proyek: 'PROJECT', kredit: 'CREDIT', saldo: 'BALANCE', saldo_usd: 'BALANCE' });
-  const ledgerLabelOf = (valas, k, saved) => (saved && !(valas && saved === LABELS[k])) ? saved : (valas ? VALAS_LABELS : LABELS)[k] || k;   // judul simpanan lama yang sama dengan bawaan lama ikut diganti
+  const VALAS_LABELS = Object.assign({}, LABELS, { tanggal: 'DATE', tipe: 'TYPE', referensi: 'REFERENCE', deskripsi: 'DESCRIPTION', proyek: 'PROJECT', kredit: 'CREDIT', kredit_usd: 'CREDIT_A', saldo: 'BALANCE', saldo_usd: 'BALANCE' });
+  const LEGACY_LABEL = { KREDIT: 'CREDIT', DESKRIPSI: 'DESCRIPTION', KREDIT_A: 'CREDIT_A' };   // judul lama yang tersimpan di desain → judul baru
+  const newLabel = s => s && Object.prototype.hasOwnProperty.call(LEGACY_LABEL, s) ? LEGACY_LABEL[s] : s;
+  const ledgerLabelOf = (valas, k, saved) => (saved && !(valas && saved === LABELS[k])) ? newLabel(saved) : (valas ? VALAS_LABELS : LABELS)[k] || k;   // judul simpanan lama yang sama dengan bawaan lama ikut diganti
   // kolom buku besar biasa (IDR)
   const COLS = ['tanggal', 'tipe', 'referensi', 'kontak', 'deskripsi', 'dept', 'proyek', 'faktur_pajak', 'no_invoice', 'debit', 'kredit', 'saldo'];
   // buku besar valas (tampilan sama dengan General Ledger - Advance di Zahir Online): blok "USD" = mata uang dasar (debit/kredit/saldo),
@@ -50,7 +52,7 @@
   // sama dengan aturan di JRXML General Ledger Advance. Bisa diganti: env USD_CURRENCY_ID (server) → dikirim ke browser lewat /version.
   const DEFAULT_USD_CURRENCY_ID = 'fdbc942a-81dc-42f3-8f77-0774358dc084';
   const ledgerColsAll = [...COLS, ...VALAS_COLS];   // semua kunci yang mungkin
-  const ledgerColsOf = valas => valas ? [...COLS.filter(c => c !== 'faktur_pajak' && c !== 'no_invoice'), ...VALAS_COLS] : COLS.slice();
+  const ledgerColsOf = valas => valas ? [...COLS.filter(c => c !== 'faktur_pajak' && c !== 'no_invoice' && c !== 'kontak'), ...VALAS_COLS] : COLS.slice();
   const LEDGER_NUM = ['debit', 'kredit', 'saldo', ...VALAS_COLS];
   // judul kelompok header 2 tingkat (kolom tanpa kelompok memakai rowspan)
   const LEDGER_GROUP = { debit: 'USD', kredit: 'USD', saldo: 'USD', debit_usd: 'IDR', kredit_usd: 'IDR', saldo_usd: 'IDR' };
@@ -105,8 +107,8 @@
         let run = g.sa, totD = 0, totK = 0, runA = g.saA, totDA = 0, totKA = 0;
         for (const r of g.trx) {
           const d = num(r.debit), kk = num(r.kredit); totD += d; totK += kk; run += this._sgn(g, d, kk);
-          const row = { tanggal: dateSlash(r.tanggal) || (V ? dateZ(r.tanggal) : String(r.tanggal).slice(0, 10)), tipe: r.tipe, referensi: r.referensi, kontak: V && !r.kontak ? '-' : r.kontak, deskripsi: r.deskripsi, dept: r.dept, proyek: r.proyek, debit: F(d), kredit: F(kk), saldo: F(run) };
-          if (!V) { row.faktur_pajak = r.faktur_pajak; row.no_invoice = r.no_invoice; }
+          const row = { tanggal: dateSlash(r.tanggal) || (V ? dateZ(r.tanggal) : String(r.tanggal).slice(0, 10)), tipe: r.tipe, referensi: r.referensi, kontak: r.kontak, deskripsi: r.deskripsi, dept: r.dept, proyek: r.proyek, debit: F(d), kredit: F(kk), saldo: F(run) };
+          if (!V) { row.faktur_pajak = r.faktur_pajak; row.no_invoice = r.no_invoice; } else delete row.kontak;
           if (V) {
             const da = num(r.debit_a), ka = num(r.kredit_a);
             // JRXML: is_usd_trx = kode mata uang transaksi ada dan bukan IDR → blok nilai asli (DEBIT_A/KREDIT_A/SALDO) kosong dan
@@ -143,13 +145,13 @@
      Saldo awal: akun neraca (klasifikasi < 4) sejak awal; akun laba-rugi (>= 4) sejak 1 Januari tahun periode.
      Laba-rugi tahun-tahun sebelumnya yang belum ditutup dikumpulkan ke satu baris tersendiri agar total debit = kredit. */
   const TB_PARTS = ['bd', 'bk', 'md', 'mk', 'net', 'ed', 'ek'];
-  const TB_SUB = { bd: 'DEBIT', bk: 'KREDIT', md: 'DEBIT', mk: 'KREDIT', net: 'NET MUTATION', ed: 'DEBIT', ek: 'KREDIT' };
+  const TB_SUB = { bd: 'DEBIT', bk: 'CREDIT', md: 'DEBIT', mk: 'CREDIT', net: 'NET MUTATION', ed: 'DEBIT', ek: 'CREDIT' };
   const TB_SEC = { bd: 'B', bk: 'B', md: 'M', mk: 'M', net: 'N', ed: 'E', ek: 'E' };
   const TB_SECNAME = { B: 'Beginning Balance', M: 'Mutation', E: 'Ending Balance' };
   // semua kolom trial balance (untuk desainer): a = mata uang akun (debit_a/kredit_a), b = mata uang dasar (debit/kredit)
   function tbFields(o) {
     o = o || {}; const cur = { a: o.curA || 'IDR', b: o.curB || 'USD' }; const sec = { B: o.secB || TB_SECNAME.B, M: o.secM || TB_SECNAME.M, E: o.secE || TB_SECNAME.E, N: '' };
-    return [{ key: 'kode_akun', label: 'Account Code', desc: 'Kode akun' }, { key: 'nama_akun', label: 'DESKRIPSI', desc: 'Nama akun' },
+    return [{ key: 'kode_akun', label: 'Account Code', desc: 'Kode akun' }, { key: 'nama_akun', label: 'DESCRIPTION', desc: 'Nama akun' },
       ...['a', 'b'].flatMap(p => TB_PARTS.map(k => ({ key: p + '_' + k, label: TB_SUB[k], desc: `${cur[p]} · ${k === 'net' ? 'Net mutation' : sec[TB_SEC[k]] + ' · ' + TB_SUB[k].toLowerCase()}` })))];
   }
   // tata letak: kolom tampil (cfg = desain [{key,label,show}], urutan tetap), label, desimal, header 3 tingkat
@@ -158,7 +160,7 @@
     o = o || {}; const curA = o.curA || 'IDR', curB = o.curB || 'USD';
     const all = tbFields(o); const m = new Map((cfg || []).map(c => [c.key, c]));
     const show = all.filter(f => !m.has(f.key) || m.get(f.key).show !== false).map(f => f.key);
-    const labels = Object.fromEntries(all.map(f => [f.key, (m.get(f.key) && m.get(f.key).label) || f.label]));
+    const labels = Object.fromEntries(all.map(f => [f.key, newLabel(m.get(f.key) && m.get(f.key).label) || f.label]));
     const dec = {}; for (const f of all) if (/^[ab]_/.test(f.key)) dec[f.key] = f.key[0] === 'a' ? (o.decA ?? 0) : (o.decB ?? 2);
     const sec = { B: o.secB || TB_SECNAME.B, M: o.secM || TB_SECNAME.M, E: o.secE || TB_SECNAME.E };
     const vis = new Set(show); const h0 = [], h1 = [], h2 = [];
@@ -184,7 +186,7 @@
      Sumber: custom query jurnal_all_trx (satu baris per baris jurnal). Per transaksi: baris kepala (tipe, nomor, tanggal,
      kontak, deskripsi, dept, proyek), baris akun, lalu baris "Balance" (jumlah debit/kredit kedua mata uang). */
   const JR_FIELDS = [['tipe', 'Type'], ['nomor', '#Transaction'], ['tanggal', 'Date'], ['deskripsi', 'Description'],
-    ['akun', 'Account'], ['kode_akun', 'Account code'], ['dept', 'DEPT'], ['b_debit', 'DEBIT'], ['b_kredit', 'KREDIT'], ['a_debit', 'DEBIT'], ['a_kredit', 'KREDIT'], ['proyek', 'PROJECT']];
+    ['akun', 'Account'], ['kode_akun', 'Account code'], ['dept', 'DEPT'], ['b_debit', 'DEBIT'], ['b_kredit', 'CREDIT'], ['a_debit', 'DEBIT'], ['a_kredit', 'CREDIT'], ['proyek', 'PROJECT']];
   function jrFields(o) {
     o = o || {}; const cur = { a: o.curA || 'IDR', b: o.curB || 'USD' };
     const desc = { tipe: 'Jenis transaksi', nomor: 'Nomor transaksi', tanggal: 'Tanggal', kontak: 'Kontak', deskripsi: 'Keterangan transaksi', akun: 'Nama akun (baris akun) / "Balance"', kode_akun: 'Kode akun', dept: 'Kepala: nama dept · baris: kode dept', proyek: 'Kode proyek (baris kepala)' };
@@ -196,7 +198,7 @@
     const all = jrFields(o); const m = new Map((cfg || []).map(c => [c.key, c]));
     const order = cfg && cfg.length ? [...cfg.map(c => c.key).filter(k => all.some(f => f.key === k)), ...all.map(f => f.key).filter(k => !m.has(k))] : all.map(f => f.key);
     const cols = order.filter(k => !m.has(k) || m.get(k).show !== false);
-    const labels = Object.fromEntries(all.map(f => [f.key, (m.get(f.key) && m.get(f.key).label) || f.label]));
+    const labels = Object.fromEntries(all.map(f => [f.key, newLabel(m.get(f.key) && m.get(f.key).label) || f.label]));
     if (labels.proyek === 'KODE PROJEK') labels.proyek = 'PROJECT';   // desain tersimpan lama
     const dec = {}; for (const c of cols) if (/^[ab]_/.test(c)) dec[c] = c[0] === 'a' ? (o.decA ?? 0) : (o.decB ?? 2);
     const grp = c => /^[ab]_/.test(c) ? c[0] : null; const h0 = [], h1 = [];
@@ -624,5 +626,5 @@
     return r => { for (let i = 0; i < tests.length; i++) if (!tests[i](r)) return false; return true; };
   }
 
-  return { VALAS_LABELS, ledgerLabelOf, ledgerColsAll, dateSlash, DATE_COL_RE, ttCode, ttNorm, analyzeQuery, localPredicate, usedColumns, selectHonored, ymd, num, fmt, appendAll, monthChunks, yearChunks, planChunks, prevDay, KREDIT_SIDE, TrialBalance, DEFAULT_USD_CURRENCY_ID, fmtZ, tbLayout, tbFields, jrFields, jrLayout, JournalBuilder, tbAccountOpts, tbRowOpts, LABELS, COLS, VALAS_COLS, ledgerColsOf, LEDGER_NUM, LEDGER_GROUP, rowKind, LedgerBuilder, LegacyMerger, mergeChunks, SEP, smartSort, BARIS_RE, decodeBaris, Pivot, pivot, Summarizer, groupRows, totalOf, jasperTipe, jasperSplit, expandJasper, JASPER_PARTS, crosstabLayout, crosstabExportRow };
+  return { newLabel, VALAS_LABELS, ledgerLabelOf, ledgerColsAll, dateSlash, DATE_COL_RE, ttCode, ttNorm, analyzeQuery, localPredicate, usedColumns, selectHonored, ymd, num, fmt, appendAll, monthChunks, yearChunks, planChunks, prevDay, KREDIT_SIDE, TrialBalance, DEFAULT_USD_CURRENCY_ID, fmtZ, tbLayout, tbFields, jrFields, jrLayout, JournalBuilder, tbAccountOpts, tbRowOpts, LABELS, COLS, VALAS_COLS, ledgerColsOf, LEDGER_NUM, LEDGER_GROUP, rowKind, LedgerBuilder, LegacyMerger, mergeChunks, SEP, smartSort, BARIS_RE, decodeBaris, Pivot, pivot, Summarizer, groupRows, totalOf, jasperTipe, jasperSplit, expandJasper, JASPER_PARTS, crosstabLayout, crosstabExportRow };
 });

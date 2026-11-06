@@ -1702,7 +1702,7 @@ const NW=new Set(['tanggal','referensi']);
 // kolom buku besar: ikuti desain (urutan, label, kolom disembunyikan) bila ada; kalau tidak, urutan bawaan
 function ledgerColumns(report,keys,headRow){
   const des=(report?.cols||[]).filter(c=>keys.includes(c.key));
-  if(des.length){ const cols=des.filter(c=>c.show!==false).map(c=>c.key); return { cols, labels:Object.fromEntries(des.map(c=>[c.key,c.label||LABELS[c.key]||c.key])) }; }
+  if(des.length){ const cols=des.filter(c=>c.show!==false).map(c=>c.key); return { cols, labels:Object.fromEntries(des.map(c=>[c.key,newLabel(c.label)||LABELS[c.key]||c.key])) }; }
   const cols=[...ORDER.filter(c=>keys.includes(c)),...keys.filter(c=>!ORDER.includes(c))];
   return { cols, labels:Object.fromEntries(cols.map(c=>[c,(headRow&&headRow[c])||LABELS[c]||c.replace(/_/g,' ').toUpperCase()])) };
 }
