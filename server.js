@@ -288,7 +288,17 @@ async function zahirCqIndex(base, headers, sq) {
 app.post('/cq/ensure', async (req, res) => {
   try {
     const base = normServer(req.get('x-zahir-base')); const { headers, slug } = zahirHeaders(req); const sq = slug ? '&slug=' + encodeURIComponent(slug) : '';
-    const idx = await zahirCqIndex(base, headers, sq); if (!idx.ok) return res.json({ checked: false, results: [], reason: idx.reason || 'daftar custom query tidak terbaca dari API Zahir' });
+    let idx = await zahirCqIndex(base, headers, sq);
+    if (!idx.ok) {
+      // server tanpa endpoint daftar (404 untuk /custom_queries): periksa satu per satu lewat nama — /api/v3/custom_queries/<nama> selain 404 berarti sudah ada
+      const map = {}; let probed = 0;
+      for (const d of bundledCq()) {
+        try { const r = await zfetch(`${base}/api/v3/custom_queries/${encodeURIComponent(d.name)}?$page=1&$per_page=1${sq}`, headers); probed++; if (r.status === 401) { const e = new Error('Login ditolak (401)'); e.status = 401; throw e; } if (r.status !== 404) map[d.name] = true; }
+        catch (e) { if (e.status === 401) throw e; }
+      }
+      if (!probed) return res.json({ checked: false, results: [], reason: idx.reason || 'daftar custom query tidak terbaca dari API Zahir' });
+      idx = { ok: true, map };
+    }
     const out = [];
     for (const d of bundledCq()) {
       if (d.name in idx.map) {
