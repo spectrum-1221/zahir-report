@@ -281,7 +281,7 @@ function bundledCq() { const out = []; try { for (const f of fs.readdirSync(CQ_B
 async function zahirCqIndex(base, headers, sq) {
   let last = '';
   for (const ep of ['/api/v3/custom_queries?$per_page=1000', '/api/v2/custom_queries?$per_page=1000']) {
-    try { const r = await zfetch(base + ep + sq, headers); if (r.status < 300) { const m = {}; for (const x of listOfDefs(r.json)) if (x && (x.name || x.nama)) m[String(x.name || x.nama).trim()] = x.id ?? true; return { ok: true, map: m }; } last = ep + ' → HTTP ' + r.status + ' ' + (r.json?.error?.message || r.json?.error?.detail?.message || ''); } catch (e) { last = ep + ' → ' + e.message; }
+    try { const r = await zfetch(base + ep + sq, headers); if (r.status < 300) { const m = {}; for (const x of listOfDefs(r.json)) if (x && (x.name || x.nama)) m[String(x.name || x.nama).trim()] = x.id ?? true; return { ok: true, map: m }; } last += (last ? ' | ' : '') + ep + ' → HTTP ' + r.status + ' ' + (r.json?.error?.message || r.json?.error?.detail?.message || ''); } catch (e) { last += (last ? ' | ' : '') + ep + ' → ' + e.message; }
   }
   return { ok: false, map: {}, reason: last };
 }
