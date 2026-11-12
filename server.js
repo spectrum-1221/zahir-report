@@ -323,7 +323,7 @@ app.post('/cq/ensure', async (req, res) => {
       const body = { name: d.name, reason: d.reason || '', field: d.field || {}, query: d.query, ...(d.query_count ? { query_count: d.query_count } : {}) };
       let done = false, err = '';
       for (const ep of ['/api/v3/custom_queries', '/api/v2/custom_queries']) {
-        try { const r = await zfetch(base + ep + (sq ? '?' + sq.slice(1) : ''), headers, 'POST', body); if (r.status < 300) { done = true; break; } err = (r.json?.error?.detail?.message) || r.json?.error?.message || (typeof r.json?.error === 'string' ? r.json.error : '') || ('HTTP ' + r.status); } catch (e) { err = e.message; }
+        try { const r = await zfetch(base + ep + (sq ? '?' + sq.slice(1) : ''), headers, 'POST', body); if (r.status < 300) { done = true; break; } err += (err ? ' | ' : '') + ep.slice(5, 7) + ': HTTP ' + r.status + ' ' + ((r.json?.error?.detail?.message) || r.json?.error?.message || (typeof r.json?.error === 'string' ? r.json.error : '') || (r.json ? JSON.stringify(r.json).slice(0, 160) : '')); } catch (e) { err += (err ? ' | ' : '') + ep.slice(5, 7) + ': ' + e.message; }
       }
       out.push({ name: d.name, status: done ? 'dibuat' : 'gagal: ' + err });
     }
