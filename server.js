@@ -89,11 +89,16 @@ function normServer(s) {
   if (!s) throw new Error('Alamat server kosong');
   if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
   if (!/^https?:\/\/[\w.-]+(:\d{1,5})?$/i.test(s)) throw new Error('Alamat server tidak valid: ' + s);
-  // versi online: hanya domain Zahir (mencegah aplikasi dipakai sebagai proxy ke alamat lain). Atur lewat env ZAHIR_ALLOWED_HOSTS.
+  // versi online: domain bebas (server Zahir bisa memakai domain sendiri), tetapi wajib https dan bukan alamat lokal/privat
+  // (mencegah aplikasi dipakai untuk menjangkau jaringan internal). Batasi ke domain tertentu lewat env ZAHIR_ALLOWED_HOSTS (pisahkan dengan koma).
   if (IS_VERCEL || process.env.ZAHIR_ALLOWED_HOSTS) {
     const host = s.replace(/^https?:\/\//i, '').replace(/:\d+$/, '').toLowerCase();
-    const allow = String(process.env.ZAHIR_ALLOWED_HOSTS || 'zahironline.com,zahirerp.com').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
-    if (!/^https:/i.test(s) || !allow.some(d => host === d || host.endsWith('.' + d))) throw new Error('Versi online hanya bisa terhubung ke Zahir Online (https://…' + allow.join(' / …') + '). Untuk server lokal gunakan aplikasi versi desktop.');
+    if (!/^https:/i.test(s)) throw new Error('Versi online hanya bisa terhubung lewat https://');
+    const allow = String(process.env.ZAHIR_ALLOWED_HOSTS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+    if (allow.length) {
+      if (!allow.some(d => host === d || host.endsWith('.' + d))) throw new Error('Domain tidak diizinkan. Domain yang diizinkan: ' + allow.join(', '));
+    } else if (!host.includes('.') || /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || /\.(local|localhost|internal|lan|intranet)$/.test(host) || host === 'localhost')
+      throw new Error('Versi online hanya bisa terhubung ke domain publik (bukan localhost/IP/alamat lokal). Untuk server lokal gunakan aplikasi versi desktop.');
   }
   return s;
 }

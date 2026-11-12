@@ -135,7 +135,7 @@ Kode yang sama bisa dijalankan sebagai situs di Vercel (`api/index.js` + `vercel
 
 | | Lokal / desktop | Vercel |
 |---|---|---|
-| Server Zahir | Zahir Online & server lokal (IP) | **Hanya Zahir Online** (`*.zahironline.com`, `*.zahirerp.com`) — atur lewat env `ZAHIR_ALLOWED_HOSTS` |
+| Server Zahir | Zahir Online & server lokal (IP) | **Domain publik apa pun lewat https** (mis. `go.zahironline.com`, `erp.kedingid.com`); localhost/IP/alamat privat ditolak — batasi ke domain tertentu lewat env `ZAHIR_ALLOWED_HOSTS` |
 | Desain laporan (✎, + Laporan Baru) | disimpan di `data/` | **tidak tersedia** — hanya laporan bawaan |
 | Batas konfirmasi baris | diatur di halaman | env `ROW_WARN` |
 | Ekspor Excel | dibuat server (streaming) | **dibuat di browser** (xlsxw.js + ExcelJS) |
