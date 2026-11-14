@@ -235,3 +235,21 @@ Tampilan Buku Besar Valas dibuat sama dengan laporan *General Ledger - Advance* 
 ### Mata uang per baris jurnal (v2.38.1)
 Mata uang transaksi kini dibaca dari **baris jurnal** (`jurnalvc.currency_id`) dan kurs dari `jurnalvc.nilaikurs`, bukan dari header (`g_jurnal.currency_id`, yang USD untuk semua transaksi sehingga blok IDR selalu kosong).
 Custom query `bb_trx_valas` versi baru membawa kolom `kurs`; database yang masih punya versi lama diperbarui otomatis (PUT) lewat tombol *Periksa custom query bawaan* — **klik tombol itu sekali** setelah memperbarui aplikasi.
+
+## Penjualan per Pelanggan — pilih faktur dengan centang (v2.39)
+Katalog → **Penjualan → Penjualan per Pelanggan (pilih faktur)**.
+
+1. **Daftar pilih (ala Umur Piutang)** — faktur penjualan *approved* dikelompokkan per klasifikasi pelanggan → pelanggan, dengan
+   kolom TANGGAL FAKTUR, NO. FAKTUR, JATUH TEMPO, umur 0-30 / 31-60 / 61-90 / >90 HARI (dari tanggal faktur s/d tanggal akhir filter),
+   TOTAL (sisa piutang), NILAI FAKTUR, dan kolom **PILIH** (centang) paling kanan.
+   - Centang per faktur (klik di mana saja pada baris), atau centang di baris nama pelanggan untuk semua fakturnya (garis putus-putus = sebagian).
+   - Bawaan hanya faktur yang belum lunas; *Tampilkan faktur lunas* untuk ikut memilih faktur yang sudah lunas. Kotak cari menyaring no. faktur / nama / kode pelanggan.
+   - *Centang semua* (yang sedang tampil), *Kosongkan*, *Salin nomor faktur* (dipisah koma — bisa ditempel ke filter "No. Faktur" template Jasper Zahir Online).
+2. **Buat Laporan Penjualan →** — hanya faktur yang dicentang: NO / NAMA TOKO / NO.FAKT. / TANGGAL / SUB JLH / TTL JLH
+   (NO & nama hanya di faktur pertama pelanggan, TTL JLH di faktur terakhir bila pelanggan punya >1 faktur, baris kosong antar pelanggan, GRAND TOTAL).
+   *← Kembali ke pilihan faktur* — centang tetap tersimpan (juga setelah ⟳ selama fakturnya masih ada).
+- Ekspor Excel mengikuti tampilan yang sedang dibuka: daftar pilih (+ kolom DIPILIH ✓) atau laporan (angka asli, tanggal yyyy/mm/dd). Cetak juga.
+- Filter: tanggal faktur, pelanggan, klasifikasi pelanggan, departemen, proyek, salesman, klasifikasi salesman. *Ekspor langsung* tidak tersedia untuk laporan ini (pilihan centang ada di browser).
+- Sumber data: custom query bawaan `penjualan_pilih_faktur` (folder `custom_queries/`, dipasang otomatis / tombol *Periksa custom query bawaan*).
+  SUB JLH = Σ qty × harga × (1 − diskon%) × kurs × (1 + pajak%) per baris faktur (harga/qty/diskon dari baris DO bila faktur dibuat dari pengiriman);
+  sisa piutang = `sales.saldo` saat ini (bukan per tanggal filter); jatuh tempo = `term_of_payments.due_date`.

@@ -260,6 +260,27 @@ table.gl.jr tr.jb td{font-weight:600;background:#e9eff6;border-top:1px solid #9f
 #celltip{position:fixed;z-index:9999;max-width:520px;background:#1f2a3a;color:#fff;font-size:12.5px;line-height:1.4;padding:7px 10px;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.25);pointer-events:none;white-space:pre-wrap;overflow-wrap:anywhere;display:none}
 .more{text-align:center;color:var(--muted);font-size:12px;padding:14px}
 .empty{padding:28px;text-align:center;color:var(--muted)}
+/* penjualan per pelanggan (pilih faktur): bilah aksi, kolom centang, laporan bergaris seperti Excel */
+.pkbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#f6f9fc;border:1px solid #dfe6ee;border-radius:8px;padding:8px 10px;margin:0 0 12px}
+.pkbar .info{margin-left:auto;font-size:12.5px;color:var(--ink)}
+.pkbar .info b{color:var(--brand)}
+.pkbar input[type=search]{width:240px;margin:0}
+.pkbar label.pk{display:flex;gap:6px;align-items:center;font-size:12.5px;text-transform:none;letter-spacing:0;margin:0;color:var(--ink);cursor:pointer;white-space:nowrap}
+.pkbar label.pk input{width:auto;margin:0}
+table.gl.pk th.ck,table.gl.pk td.ck{text-align:center;padding-left:2px;padding-right:2px}
+table.gl.pk input[type=checkbox]{width:16px;height:16px;margin:0;cursor:pointer;accent-color:var(--brand)}
+table.gl.pk tr.jh td{font-weight:600;padding-top:9px;border-bottom:1px solid #dfe6ee}
+table.gl.pk tr.jh td.ck input.part{outline:2px dashed var(--brand);outline-offset:1px}
+table.gl.pk tr.trx{cursor:pointer}
+table.gl.pk tr.trx.on td{background:#fff6d1!important}
+table.gl.pk tr.tot.gt td{background:#e9eff6}
+table.gl.sr{min-width:0;max-width:760px;margin:0 auto}
+table.gl.sr th{text-align:center;background:#fff;color:var(--ink);border:1px solid #9aa7b6;font-weight:600}
+table.gl.sr td{border:1px solid #c3ccd7}
+table.gl.sr td.c{text-align:center}
+table.gl.sr tr.trx:nth-child(even) td{background:#fff}
+table.gl.sr tr.sb td{height:20px}
+@media print{.pkbar{display:none!important}table.gl.pk .ck{display:none}table.gl.pk tr.trx.on td{background:#fff!important}}
 
 /* ---------- LOADING OVERLAY ---------- */
 #ov{position:fixed;inset:0;background:rgba(15,27,45,.55);z-index:50;display:flex;align-items:center;justify-content:center}
@@ -577,6 +598,11 @@ const CATALOG = [
     { id:'jurnal_all', title:'Jurnal - All Transaction', mode:'journal', cq:'jurnal_all_trx', cur:{curA:'IDR',curB:'USD',decA:0,decB:2},
       filters:['date','contact','dept','proj'] },
   ]},
+  { category:'Penjualan', items:[
+    // daftar faktur ala Umur Piutang dengan kolom centang; faktur yang dicentang → laporan NO / NAMA TOKO / NO.FAKT. / TANGGAL / SUB JLH / TTL JLH
+    { id:'jual_pilih', title:'Penjualan per Pelanggan (pilih faktur)', mode:'pick', cq:'penjualan_pilih_faktur',
+      filters:['date',{preset:'contact',label:'Pelanggan'},'cclass','dept','proj','sales','sclass'] },
+  ]},
 ];
 
 /* ---------- state & helpers ---------- */
@@ -745,7 +771,7 @@ async function buildCatalog(){
   await loadCustomReports();
   const groups=new Map();
   for(const it of allReports()){ const k=it.category||'Lainnya'; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(it); }
-  $('#cards').innerHTML=[...groups].map(([cat,items])=>`<div class="cat"><h3>${esc(cat)}<i>▲</i></h3>${items.map(it=>`<a href="#" class="it" data-id="${it.id}"><span class="st">★</span>${esc(it.title)}${st.online?'':`<span class="ed" data-edit="${it.id}" title="Ubah desain">✎</span>`}</a>`).join('')}</div>`).join('');
+  $('#cards').innerHTML=[...groups].map(([cat,items])=>`<div class="cat"><h3>${esc(cat)}<i>▲</i></h3>${items.map(it=>`<a href="#" class="it" data-id="${it.id}"><span class="st">★</span>${esc(it.title)}${st.online||it.mode==='pick'?'':`<span class="ed" data-edit="${it.id}" title="Ubah desain">✎</span>`}</a>`).join('')}</div>`).join('');
   $('#cards').querySelectorAll('a.it').forEach(a=>a.onclick=e=>{ e.preventDefault(); if(e.target.dataset.edit){ openDesigner(e.target.dataset.edit); return; } openReport(a.dataset.id); });
 }
 async function openReport(id){
@@ -753,6 +779,8 @@ async function openReport(id){
   st.report=r; st.cq=r.cq; $('#rptCrumb').textContent=r.title; $('#rTitle').textContent=r.title.toUpperCase(); $('#fModalTitle').textContent=r.title;
   showPage('pgRpt'); st.shown=false; $('#status').textContent=''; $('#rCo').textContent=st.company?.name||''; $('#rPer').textContent=''; $('#rFil').innerHTML=''; $('#rBody').innerHTML=''; $('#more').classList.add('hide');
   $('#btnXlsx').disabled=$('#btnPrint').disabled=$('#btnExpand').disabled=true;
+  // pilih faktur: interaktif di layar, jadi tanpa "Ekspor langsung" (server tidak tahu faktur mana yang dicentang)
+  const noDirect=r.mode==='pick'; $('#fOut').closest('.fout').classList.toggle('hide',noDirect); $('#btnXlsxDirect').classList.toggle('hide',noDirect);
   ov.show('Menyiapkan laporan','Memuat pilihan filter…'); ov.set(30,'');
   await buildFilterPanel(r);
   if(!st.lookupsLoaded){ await loadLookups(); st.lookupsLoaded=true; }
@@ -1110,6 +1138,7 @@ const SOURCES={
   projects:   { ep:'/api/v2/projects?per_page=500', code:['code'], name:['name','nama'] },
   cost_codes: { ep:'/api/v2/cost_codes?per_page=500', code:['code'], name:['name','nama'] },
   warehouses: { ep:'/api/v2/warehouses?per_page=500', code:['code'], name:['name','nama'] },
+  contact_classes: { ep:'/api/v2/contact_classifications?per_page=500', code:['code'], name:['name','klasifikasi','nama'] },
 };
 const PRESET_FILTERS={
   date:{key:'date',label:'Tanggal',type:'date'},
@@ -1120,13 +1149,17 @@ const PRESET_FILTERS={
   proj:{key:'project_id',label:'Proyek',type:'select',source:'projects'},
   cost:{key:'cost_code_id',label:'Kode Biaya',type:'select',source:'cost_codes'},
   wh:{key:'warehouse_id',label:'Gudang',type:'select',source:'warehouses'},
+  cclass:{key:'customer_classification_id',label:'Klasifikasi Pelanggan',type:'select',source:'contact_classes'},
+  sales:{key:'salesman_id',label:'Salesman',type:'select',source:'contacts'},
+  sclass:{key:'salesman_classification_id',label:'Klasifikasi Salesman',type:'select',source:'contact_classes'},
   text:{key:'',label:'Filter',type:'text'},
   endpoint:{key:'',label:'Pilihan',type:'select',source:'endpoint',endpoint:'/api/v2/'},
 };
 const BUILTIN_FILTERS=[PRESET_FILTERS.date,PRESET_FILTERS.account_range,{...PRESET_FILTERS.account,label:'Akun tertentu'},PRESET_FILTERS.contact,PRESET_FILTERS.dept,PRESET_FILTERS.proj].map(f=>({...f}));
 function legacyFilters(f){ f=f||{}; const out=[]; if(f.date!==false) out.push({...PRESET_FILTERS.date}); if(f.account) out.push({...PRESET_FILTERS.account}); if(f.contact) out.push({...PRESET_FILTERS.contact}); if(f.dept) out.push({...PRESET_FILTERS.dept}); if(f.proj) out.push({...PRESET_FILTERS.proj}); return out; }
 function filtersOf(r){ if(r.custom) return Array.isArray(r.filters)?r.filters:legacyFilters(r.filters);
-  if(Array.isArray(r.filters)) return r.filters.map(k=>k==='account'?{...PRESET_FILTERS.account,label:'Akun tertentu'}:{...PRESET_FILTERS[k]});
+  // entri boleh berupa nama preset ('dept') atau {preset, ...pengganti} mis. {preset:'contact', label:'Pelanggan'}
+  if(Array.isArray(r.filters)) return r.filters.map(k=>typeof k==='object'?(({preset,...o})=>({...PRESET_FILTERS[preset],...o}))(k):k==='account'?{...PRESET_FILTERS.account,label:'Akun tertentu'}:{...PRESET_FILTERS[k]});
   return BUILTIN_FILTERS; }
 // hanya data aktif yang ditawarkan di filter (mengenali berbagai nama field status di API Zahir)
 const isActive=o=>{ if(!o||typeof o!=='object') return true;
@@ -1292,13 +1325,17 @@ async function parallel(items,limit,fn){ const out=new Array(items.length); let 
 // Paket permintaan laporan (dipakai preview di browser dan ekspor langsung di server)
 function reportRequest(){
   const F=collectFilters(); const r=st.report;
-  const mode=r.custom?r.mode:(r.mode==='raw'?'ledger':(r.mode==='tb'||r.mode==='journal')?r.mode:'legacy');
-  return { F, mode, monthly: mode==='tb'?false:mode==='journal'||mode==='ledger'||mode==='legacy'||r.fetch==='monthly'||r.fetch==='monthly_sum', summarize: mode==='table'&&r.fetch==='monthly_sum',
+  const mode=r.custom?r.mode:(r.mode==='raw'?'ledger':(r.mode==='tb'||r.mode==='journal'||r.mode==='pick')?r.mode:'legacy');
+  return { F, mode, monthly: mode==='tb'||mode==='pick'?false:mode==='journal'||mode==='ledger'||mode==='legacy'||r.fetch==='monthly'||r.fetch==='monthly_sum', summarize: mode==='table'&&r.fetch==='monthly_sum',
     // custom query buku besar "jadi" sebagai cadangan bila bb_trx tidak ada di database ini (laporan bawaan, termasuk yang sudah diubah desainnya)
     report:{ id:r.id, title:r.title, custom:!!r.custom, mode, cur:r.cur||null, cq:r.cq, cqTrx:r.cqTrx, cqSaldo:r.cqSaldo, crosstab:r.crosstab, cols:r.cols, fetch:r.fetch, totRow:r.totRow, groupBy:r.groupBy||[], groupSub:r.groupSub, groupHide:r.groupHide, labKode:r.labKode, labAkun:r.labAkun,
       legacyCq: mode==='ledger' ? (r.custom ? (builtinReports().find(b=>b.id===r.id)?.cq||null) : r.cq) : null } };
 }
 $('#btnRun').onclick=()=>runReport({force:true});   // ⟳ = ambil ulang dari server, abaikan cache
+function renderMode(mode,rows,d1,d2){
+  if(mode==='journal') renderJournal(rows,d1,d2); else if(mode==='tb') renderTB(rows,d1,d2); else if(mode==='crosstab') renderCrosstab(rows,d1,d2);
+  else if(mode==='table') renderTable(rows,d1,d2); else if(mode==='pick') renderPick(rows,d1,d2); else render(rows,d1,d2);
+}
 async function runReport({force=false}={}){
   const {F,mode,monthly,summarize,report}=reportRequest(); const useDate=!!F.date; const d1=F.date?.d1||'', d2=F.date?.d2||'';
   if(useDate&&(!d1||!d2)){ alert('Isi rentang tanggal'); return; }
@@ -1308,7 +1345,7 @@ async function runReport({force=false}={}){
   const ckey=cacheKey(); const hit=force?null:cacheGet(ckey);
   if(hit){
     try{ st.rows=hit.rows; st.d1=d1; st.d2=d2;
-      if(mode==='journal') renderJournal(hit.rows,d1,d2); else if(mode==='tb') renderTB(hit.rows,d1,d2); else if(mode==='crosstab') renderCrosstab(hit.rows,d1,d2); else if(mode==='table') renderTable(hit.rows,d1,d2); else render(hit.rows,d1,d2);
+      renderMode(mode,hit.rows,d1,d2);
       const at=new Date(hit.at); $('#status').textContent=`${hit.rows.length.toLocaleString('id-ID')} baris · dari hasil pengambilan ${at.getHours().toString().padStart(2,'0')}:${at.getMinutes().toString().padStart(2,'0')} (tidak menghubungi server) · klik ⟳ untuk mengambil ulang`;
       $('#btnXlsx').disabled=$('#btnPrint').disabled=$('#btnExpand').disabled=!hit.rows.length;
     }catch(err){ $('#status').textContent='Gagal: '+err.message; }
@@ -1370,6 +1407,11 @@ async function runReport({force=false}={}){
       ov.sub('Menyusun jurnal…'); await sleep(20); rows=JB.build(st.ttypes);
       const fc=tbRowOpts(await tbAccounts()).code; for(const x of rows) if(x.kode_akun) x.kode_akun=fc(x.kode_akun);   // kode akun berformat seperti di Zahir
     }
+    if(mode==='pick'){
+      rows=[];
+      try{ await runFlat(r.cq,x=>rows.push(x)); }
+      catch(err){ if(/not found|tidak ditemukan|404|custom query/i.test(err.message)) throw new Error(err.message+' — custom query '+r.cq+' belum terpasang di database ini. Kembali ke daftar laporan lalu klik "Periksa custom query bawaan".'); throw err; }
+    }
     if(!rows && mode==='ledger'){
       if(!useDate) throw new Error('Laporan buku besar memerlukan filter tanggal');
       try{ rows=await runLedger(r.custom?r.cq:r.cqTrx, r.cqSaldo); }
@@ -1382,7 +1424,7 @@ async function runReport({force=false}={}){
     if(!rows && mode==='crosstab'){ const pv=new Pivot(r.crosstab); await runFlat(r.cq,x=>pv.add(x)); ov.sub('Merangkum crosstab…'); await sleep(20); rows=pv.finish(); }
     ov.sub('Menyusun tampilan…'); ov.set(97,''); await sleep(30);
     st.rows=rows; st.d1=d1; st.d2=d2; cachePut(ckey,{rows});
-    if(mode==='journal') renderJournal(rows,d1,d2); else if(mode==='tb') renderTB(rows,d1,d2); else if(mode==='crosstab') renderCrosstab(rows,d1,d2); else if(mode==='table') renderTable(rows,d1,d2); else render(rows,d1,d2);
+    renderMode(mode,rows,d1,d2);
     const selNote=(mode==='table'||mode==='crosstab')&&SEL[r.cq]?` · kolom diminta seperlunya (${Object.values(SEL[r.cq])[0].split(',').length} kolom)`:'';
     $('#status').textContent=`${rows.length.toLocaleString('id-ID')} baris · ${((performance.now()-t0)/1000).toFixed(1)} detik · ${NET.req} permintaan ke server (rata-rata ${(NET.ms/Math.max(1,NET.req)/1000).toFixed(1)} dtk, total ${(NET.bytes/1048576).toFixed(0)} MB)${selNote}`;
     $('#btnXlsx').disabled=$('#btnPrint').disabled=$('#btnExpand').disabled=!rows.length;
@@ -1676,6 +1718,103 @@ function renderCrosstab(rows,d1,d2){
   R={rows,cols,labels,numeric,ncol:cols.length,rowHtml,bound:R.bound};
   vStart();
   $('#btnXlsx').onclick=()=>exportXlsx({ rows, cols, labels, numeric, kind:'table', rowOf:r=>crosstabExportRow(r,rows,cfg), period:$('#rPer').textContent, fileName:`${st.report.title.replace(/[^\w]+/g,'_')}_${d1||''}_${d2||''}.xlsx` });
+}
+
+/* ---------- penjualan per pelanggan: daftar faktur ala Umur Piutang + centang → laporan penjualan ---------- */
+const PK={src:[],sel:new Set(),byKey:new Map(),showPaid:false,q:'',view:'pick',asOf:'',d1:'',d2:''};
+const pkNum=(v,dec=2)=>{ if(v==null||v==='') return ''; const n=+v; if(!isFinite(n)) return esc(v); return n.toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:2}); };
+const pkDate=s=>{ if(!s) return ''; const d=new Date(String(s).slice(0,10)+'T00:00:00'); return isNaN(d)?esc(s):d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}); };
+const pkDateShort=s=>{ const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||'')); return m?`${m[3]},${m[2]},${m[1].slice(2)}`:esc(s||''); };   // 10,08,26 seperti contoh laporan
+const pkList=()=>PK.src.filter(r=>PK.sel.has(SalesPick.key(r)));
+function pkPeriod(){ return PK.d1&&PK.d2?`Periode : ${fmtDate(PK.d1)} s/d ${fmtDate(PK.d2)}`:''; }
+function renderPick(rows,d1,d2){
+  if(PK.src!==rows){ const ids=new Set(rows.map(SalesPick.key)); PK.sel=new Set([...PK.sel].filter(k=>ids.has(k))); }   // ambil ulang: centang yang fakturnya masih ada tetap dipertahankan
+  PK.src=rows; PK.byKey=new Map(rows.map(r=>[SalesPick.key(r),r])); PK.d1=d1; PK.d2=d2; PK.asOf=d2||today();
+  pkShowPick();
+}
+async function pkCopy(){
+  const nos=SalesPick.reportRows(pkList()).filter(r=>r.no_faktur&&!r.__tot).map(r=>r.no_faktur).join(', ');
+  if(!nos) return;
+  try{ await navigator.clipboard.writeText(nos); toast(`${nos.split(', ').length} nomor faktur disalin — tempel ke filter "No. Faktur" bila perlu`); }
+  catch{ prompt('Salin nomor faktur berikut:',nos); }
+}
+function pkShowPick(){
+  PK.view='pick'; $('#pgRpt').classList.add('wide');
+  $('#rTitle').textContent=(st.report.title||'').toUpperCase(); $('#rPer').textContent=`Umur piutang per ${fmtDate(PK.asOf)}`+(PK.d1?` · faktur ${fmtDate(PK.d1)} s/d ${fmtDate(PK.d2)}`:'');
+  $('#rpt').classList.remove('hide');
+  if(!PK.src.length){ $('#rBody').innerHTML='<div class="empty">Tidak ada faktur penjualan pada filter ini.</div>'; $('#more').classList.add('hide'); return; }
+  $('#rBody').innerHTML=`<div class="pkbar">
+      <input type="search" id="pkQ" placeholder="Cari no. faktur / pelanggan…" value="${esc(PK.q)}">
+      <label class="pk"><input type="checkbox" id="pkPaid"${PK.showPaid?' checked':''}> Tampilkan faktur lunas</label>
+      <button class="ghost sm" id="pkAll" title="Centang semua faktur yang sedang tampil">Centang semua</button>
+      <button class="ghost sm" id="pkNone">Kosongkan</button>
+      <span class="info" id="pkInfo"></span>
+      <button class="ghost sm" id="pkCopy" title="Salin nomor faktur yang dicentang (dipisah koma)">Salin nomor faktur</button>
+      <button class="sm" id="pkMake">Buat Laporan Penjualan →</button>
+    </div><div id="pkTbl"></div>`;
+  let t; $('#pkQ').oninput=()=>{ clearTimeout(t); t=setTimeout(()=>{ PK.q=$('#pkQ').value; pkDrawPick(); },200); };
+  $('#pkPaid').onchange=()=>{ PK.showPaid=$('#pkPaid').checked; pkDrawPick(); };
+  $('#pkAll').onclick=()=>{ for(const r of R.rows) if(r.__tid) PK.sel.add(r.__tid); pkSync(); };
+  $('#pkNone').onclick=()=>{ PK.sel.clear(); pkSync(); };
+  $('#pkCopy').onclick=pkCopy; $('#pkMake').onclick=pkShowReport;
+  $('#pkTbl').addEventListener('change',e=>{ const x=e.target; if(x.dataset.tid){ x.checked?PK.sel.add(x.dataset.tid):PK.sel.delete(x.dataset.tid); pkSync(); }
+    else if(x.dataset.cust!=null){ const h=R.rows.find(r=>r.__k==='jh'&&r.__cust===x.dataset.cust); if(h) for(const id of h.__ids) x.checked?PK.sel.add(id):PK.sel.delete(id); pkSync(); } });
+  // klik di mana saja pada baris faktur = centang/lepas
+  $('#pkTbl').addEventListener('click',e=>{ if(e.target.closest('input,a,button')) return; const tr=e.target.closest('tr.trx[data-tid]'); if(!tr) return; const id=tr.dataset.tid; PK.sel.has(id)?PK.sel.delete(id):PK.sel.add(id); pkSync(); });
+  pkDrawPick();
+}
+function pkDrawPick(){
+  const rows=SalesPick.pickRows(PK.src,{asOf:PK.asOf,showPaid:PK.showPaid,q:PK.q});
+  const cols=SalesPick.PICK_COLS, labels=SalesPick.PICK_LABELS, numeric=new Set(SalesPick.PICK_NUM);
+  if(!rows.length){ $('#pkTbl').innerHTML=`<div class="empty">${PK.showPaid||PK.q?'Tidak ada faktur yang cocok.':'Semua faktur pada filter ini sudah lunas — centang "Tampilkan faktur lunas" untuk memilihnya.'}</div>`; R={rows:[],cols,labels,numeric,ncol:cols.length+1,rowHtml:()=>'',bound:R.bound}; $('#more').classList.add('hide'); pkInfo(); return; }
+  const W={nama:200,tanggal:96,no_faktur:118,tgl_jatuh_tempo:96}; const cw=c=>W[c]||112; const all=[...cols.map(cw),56]; const w=all.reduce((a,b)=>a+b,0);
+  $('#pkTbl').innerHTML=`<table class="gl pk" style="min-width:${w}px"><colgroup>${all.map(x=>`<col style="width:${(x/w*100).toFixed(2)}%">`).join('')}</colgroup><thead><tr>${cols.map(c=>`<th class="${numeric.has(c)?'r':''}">${esc(labels[c])}</th>`).join('')}<th class="ck">PILIH</th></tr></thead><tbody id="glBody"></tbody></table>`;
+  const n=cols.length;
+  const cell=(r,c)=>numeric.has(c)?`<td class="r">${pkNum(r[c])}</td>`:`<td class="${c==='nama'?'':'nw'}">${c==='tanggal'||c==='tgl_jatuh_tempo'?pkDate(r[c]):esc(r[c]??'')}</td>`;
+  const rowHtml=r=>{
+    if(r.__kind==='gtitle') return `<tr class="title"><td colspan="${n+1}">${esc(r.__label)}</td></tr>`;
+    if(r.__kind==='blank') return `<tr class="blank"><td colspan="${n+1}"></td></tr>`;
+    if(r.__k==='jh'){ const k=r.__ids.filter(id=>PK.sel.has(id)).length; return `<tr class="jh"><td colspan="${n}">${esc(r.nama)}</td><td class="ck"><input type="checkbox" data-cust="${esc(r.__cust)}" title="Centang semua faktur pelanggan ini"${k&&k===r.__ids.length?' checked':''}${k&&k<r.__ids.length?' class="part"':''}></td></tr>`; }
+    if(r.__tid){ const on=PK.sel.has(r.__tid); return `<tr class="trx${on?' on':''}" data-tid="${esc(r.__tid)}">${cols.map(c=>cell(r,c)).join('')}<td class="ck"><input type="checkbox" data-tid="${esc(r.__tid)}"${on?' checked':''}></td></tr>`; }
+    return `<tr class="tot${r.__gt||r.__grand?' gt':''}">${cols.map(c=>cell(r,c)).join('')}<td class="ck"></td></tr>`;
+  };
+  R={rows,cols,labels,numeric,ncol:n+1,rowHtml,bound:R.bound};
+  vStart(); pkInfo();
+  const xcols=[...cols,'pilih'], xlabels={...labels,pilih:'DIPILIH'};
+  $('#btnXlsx').onclick=()=>exportXlsx({ rows, cols:xcols, labels:xlabels, numeric, kind:'table', period:$('#rPer').textContent, rowOf:r=>r.__tid?{...r,pilih:PK.sel.has(r.__tid)?'✓':''}:r,
+    fileName:`PilihFakturPenjualan_${PK.d1||''}_${PK.d2||''}.xlsx` });
+}
+// samakan tampilan dengan PK.sel tanpa menggambar ulang tabel (posisi scroll tetap)
+function pkSync(){
+  const tb=$('#pkTbl'); if(!tb) return;
+  tb.querySelectorAll('tr.trx[data-tid]').forEach(tr=>{ const on=PK.sel.has(tr.dataset.tid); tr.classList.toggle('on',on); const c=tr.querySelector('input[data-tid]'); if(c) c.checked=on; });
+  tb.querySelectorAll('input[data-cust]').forEach(c=>{ const h=R.rows.find(r=>r.__k==='jh'&&r.__cust===c.dataset.cust); if(!h) return; const k=h.__ids.filter(id=>PK.sel.has(id)).length; c.checked=k>0&&k===h.__ids.length; c.classList.toggle('part',k>0&&k<h.__ids.length); });
+  pkInfo();
+}
+function pkInfo(){
+  const list=pkList(); const n=list.length; const tot=list.reduce((a,r)=>a+num(r.total),0); const cust=new Set(list.map(r=>String(r.contact_id??r.nama_pelanggan))).size;
+  if($('#pkInfo')) $('#pkInfo').innerHTML=n?`<b>${n}</b> faktur dari <b>${cust}</b> pelanggan dipilih · nilai faktur <b>${pkNum(tot,0)}</b>`:'Belum ada faktur yang dicentang';
+  if($('#pkMake')) $('#pkMake').disabled=!n; if($('#pkCopy')) $('#pkCopy').disabled=!n;
+}
+function pkShowReport(){
+  const list=pkList(); if(!list.length) return;
+  PK.view='report'; $('#pgRpt').classList.remove('wide');
+  $('#rTitle').textContent='LAPORAN PENJUALAN PER PELANGGAN'; $('#rPer').textContent=pkPeriod();
+  const rows=SalesPick.reportRows(list); const cols=SalesPick.REPORT_COLS, labels=SalesPick.REPORT_LABELS, numeric=new Set(SalesPick.REPORT_NUM);
+  const cust=new Set(list.map(r=>String(r.contact_id??r.nama_pelanggan))).size;
+  const W={no:40,nama_toko:230,no_faktur:110,tanggal:90,sub_jlh:125,ttl_jlh:125}; const w=cols.reduce((a,c)=>a+W[c],0);
+  $('#rBody').innerHTML=`<div class="pkbar"><button class="ghost sm" id="pkBack">← Kembali ke pilihan faktur</button><span class="info"><b>${list.length}</b> faktur · <b>${cust}</b> pelanggan</span><button class="ghost sm" id="pkCopy">Salin nomor faktur</button></div>
+    <table class="gl sr"><colgroup>${cols.map(c=>`<col style="width:${(W[c]/w*100).toFixed(2)}%">`).join('')}</colgroup><thead><tr>${cols.map(c=>`<th>${esc(labels[c])}</th>`).join('')}</tr></thead><tbody id="glBody"></tbody></table>`;
+  $('#pkBack').onclick=()=>{ pkShowPick(); window.scrollTo(0,0); }; $('#pkCopy').onclick=pkCopy;
+  const rowHtml=r=>{
+    if(r.__kind==='blank') return `<tr class="sb">${cols.map(()=>'<td></td>').join('')}</tr>`;
+    const td=c=>numeric.has(c)?`<td class="r">${r[c]==null?'':pkNum(r[c],Number.isInteger(+r[c])?0:2)}</td>`:`<td class="c">${c==='tanggal'?pkDateShort(r[c]):esc(r[c]??'')}</td>`;
+    return `<tr class="${r.__tot?'tot':'trx'}">${cols.map(td).join('')}</tr>`;
+  };
+  R={rows,cols,labels,numeric,ncol:cols.length,rowHtml,bound:R.bound};
+  vStart();
+  $('#btnXlsx').onclick=()=>exportXlsx({ rows, cols, labels, numeric, kind:'table', dec:{sub_jlh:0,ttl_jlh:0}, period:pkPeriod(), fileName:`PenjualanPerPelanggan_${PK.d1||''}_${PK.d2||''}.xlsx` });
+  window.scrollTo(0,0);
 }
 
 /* ---------- render buku besar ---------- */
