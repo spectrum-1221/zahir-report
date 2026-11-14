@@ -1,0 +1,8 @@
+{
+  "default": "*",
+  "slugs": {
+    "saranamakmur*-pg.zahironline.com": ["jual_pilih"],
+    "demojapex*-pg.zahironline.com": ["bb_usd", "tb_valas", "jurnal_all"],
+    "perusahaan-khusus-pg.zahironline.com": ["bb", "u_mabc123"]
+  }
+}

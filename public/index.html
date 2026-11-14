@@ -766,16 +766,22 @@ function builtinAsDesign(b){
   return { id:b.id, title:b.title, category:b.category, custom:true, mode:'ledger', cq:b.cqTrx||b.cq, cqSaldo:b.cqSaldo||null, filters:BUILTIN_FILTERS.map(f=>({...f})), cols:ledgerFields([],!!b.valas), fetch:'monthly' }; }
 function rptHeaders(extra){ const h={'x-zahir-token':st.token,...(extra||{})}; if(st.slug) h['x-zahir-slug']=st.slug; if(st.company?.id) h['x-zahir-company']=st.company.id; return h; }
 async function loadCustomReports(){ try{ const r=await fetch('/reports',{headers:rptHeaders()}); CUSTOM=r.ok?await r.json():[]; }catch{ CUSTOM=[]; } }
+// pembatasan laporan per database (diatur admin di server: data/access.json atau env REPORT_ACCESS); null = semua laporan
+async function loadAccess(){ try{ const r=await fetch('/access',{headers:rptHeaders()}); const j=r.ok?await r.json():{all:true}; st.access=j.all?null:new Set(j.reports||[]); st.accessErr=j.error||''; }catch{ st.access=null; st.accessErr=''; } }
+const reportAllowed=id=>!st.access||st.access.has(id);
 async function buildCatalog(){
   $('#catCo').textContent=st.company.name;
-  await loadCustomReports();
+  await Promise.all([loadCustomReports(),loadAccess()]);
+  const limited=!!st.access; $('#btnNewRpt').classList.toggle('hide',limited);
   const groups=new Map();
-  for(const it of allReports()){ const k=it.category||'Lainnya'; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(it); }
-  $('#cards').innerHTML=[...groups].map(([cat,items])=>`<div class="cat"><h3>${esc(cat)}<i>▲</i></h3>${items.map(it=>`<a href="#" class="it" data-id="${it.id}"><span class="st">★</span>${esc(it.title)}${st.online||it.mode==='pick'?'':`<span class="ed" data-edit="${it.id}" title="Ubah desain">✎</span>`}</a>`).join('')}</div>`).join('');
+  const visible=allReports().filter(it=>reportAllowed(it.id));
+  if(!visible.length){ $('#cards').innerHTML=`<div class="empty">${st.accessErr?esc(st.accessErr)+' — ':''}Belum ada laporan yang diizinkan untuk database ini. Hubungi admin Zahir Insight.</div>`; return; }
+  for(const it of visible){ const k=it.category||'Lainnya'; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(it); }
+  $('#cards').innerHTML=[...groups].map(([cat,items])=>`<div class="cat"><h3>${esc(cat)}<i>▲</i></h3>${items.map(it=>`<a href="#" class="it" data-id="${it.id}"><span class="st">★</span>${esc(it.title)}${st.online||st.access||it.mode==='pick'?'':`<span class="ed" data-edit="${it.id}" title="Ubah desain">✎</span>`}</a>`).join('')}</div>`).join('');
   $('#cards').querySelectorAll('a.it').forEach(a=>a.onclick=e=>{ e.preventDefault(); if(e.target.dataset.edit){ openDesigner(e.target.dataset.edit); return; } openReport(a.dataset.id); });
 }
 async function openReport(id){
-  const r=allReports().find(x=>x.id===id); if(!r) return;
+  const r=allReports().find(x=>x.id===id); if(!r||!reportAllowed(id)) return;
   st.report=r; st.cq=r.cq; $('#rptCrumb').textContent=r.title; $('#rTitle').textContent=r.title.toUpperCase(); $('#fModalTitle').textContent=r.title;
   showPage('pgRpt'); st.shown=false; $('#status').textContent=''; $('#rCo').textContent=st.company?.name||''; $('#rPer').textContent=''; $('#rFil').innerHTML=''; $('#rBody').innerHTML=''; $('#more').classList.add('hide');
   $('#btnXlsx').disabled=$('#btnPrint').disabled=$('#btnExpand').disabled=true;

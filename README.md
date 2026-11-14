@@ -253,3 +253,30 @@ Katalog → **Penjualan → Penjualan per Pelanggan (pilih faktur)**.
 - Sumber data: custom query bawaan `penjualan_pilih_faktur` (folder `custom_queries/`, dipasang otomatis / tombol *Periksa custom query bawaan*).
   SUB JLH = Σ qty × harga × (1 − diskon%) × kurs × (1 + pajak%) per baris faktur (harga/qty/diskon dari baris DO bila faktur dibuat dari pengiriman);
   sisa piutang = `sales.saldo` saat ini (bukan per tanggal filter); jatuh tempo = `term_of_payments.due_date`.
+
+## Pembatasan laporan per database (v2.40)
+Admin bisa menentukan laporan apa saja yang boleh dibuka untuk database (slug) tertentu. Aturan dibaca dari env `REPORT_ACCESS`
+(JSON — untuk Vercel/Docker/Kubernetes) atau berkas `data/access.json` di folder data (dibaca ulang otomatis bila diubah, tanpa restart).
+Contoh lengkap: `access.example.json`.
+
+```json
+{
+  "default": "*",
+  "slugs": {
+    "saranamakmur*-pg.zahironline.com": ["jual_pilih"],
+    "demojapex*-pg.zahironline.com": ["bb_usd", "tb_valas", "jurnal_all"]
+  }
+}
+```
+- Kunci `slugs` = slug database (boleh memakai `*`, huruf besar/kecil sama) **atau** id perusahaan Zahir. Bila beberapa pola cocok, pola terpanjang (paling spesifik) yang dipakai.
+- Nilai = daftar id laporan, atau `"*"` (semua). Id bawaan: `bb` (Buku Besar), `bb_usd` (Buku Besar Valas), `tb_valas` (Trial Balance),
+  `jurnal_all` (Jurnal), `jual_pilih` (Penjualan per Pelanggan - pilih faktur). Laporan buatan user memakai id-nya sendiri (`u_…`, terlihat di `data/reports.<slug>.json`).
+- `default` berlaku untuk database yang tidak cocok dengan pola mana pun: `"*"` (bawaan) = semua laporan, `[]` = tidak ada laporan (mode daftar-putih).
+- Tanpa env/berkas aturan, semua laporan terbuka seperti sebelumnya. Berkas aturan yang JSON-nya rusak = **tidak ada** laporan (pesan kesalahan tampil di katalog), bukan terbuka semua.
+
+Yang terjadi pada database yang dibatasi:
+- Katalog hanya menampilkan laporan yang diizinkan; tombol *+ Laporan Baru* dan ✎ disembunyikan, dan server menolak simpan/hapus desain (403).
+- **Ditegakkan di server**: proxy `/zapi` hanya meneruskan pengambilan data custom query milik laporan yang diizinkan (custom query laporan bawaan
+  ada di `BUILTIN_CQ` di `server.js` — samakan bila menambah laporan bawaan); daftar/membuat/mengubah custom query lewat proxy ditolak; *Ekspor langsung* juga diperiksa.
+  Data master untuk filter (akun, kontak, departemen, …) tetap bisa dibaca.
+- Pembatasan ini berlaku untuk pemakaian lewat Zahir Insight. Hak akses data di Zahir Online sendiri tetap diatur dari pengaturan pengguna Zahir.

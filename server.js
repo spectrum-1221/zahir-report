@@ -207,6 +207,16 @@ app.all('/zapi/*', async (req, res) => {
     // slug database (mis. namapt-pg.zahironline.com): dikirim sebagai header + query param
     const slug = (req.get('x-zahir-slug') || '').trim();
     let target = req.originalUrl.replace(/^\/zapi/, '');
+    // pembatasan per database: data custom query hanya untuk laporan yang diizinkan; membuat/mengubah custom query lewat proxy ditolak
+    const allow = allowedReports(req);
+    if (allow) {
+      const m = /^\/api\/v\d+\/custom_queries(?:\/([^/?#]+))?/i.exec(target);
+      if (m) {
+        const name = m[1] ? decodeURIComponent(m[1]) : null;
+        if (req.method !== 'GET' || !name || !allowedCq(req, allow).has(name))
+          return res.status(403).json({ error: 'Akses ditolak: laporan/custom query ini tidak diizinkan untuk database ini' + (name ? ` (${name})` : '') + '.' });
+      }
+    }
     if (slug) {
       headers.slug = slug; headers['X-Slug'] = slug;
       if (!/[?&]slug=/.test(target)) target += (target.includes('?') ? '&' : '?') + 'slug=' + encodeURIComponent(slug);
@@ -392,9 +402,55 @@ function loadReports(req){
 }
 function saveReports(req, list){ writeStore(rptBase(req), list); }
 function requireLogin(req, res){ if (!req.get('x-zahir-token')) { res.status(401).json({ error: 'Belum login' }); return false; } return true; }
-app.get('/reports', (req, res) => { if (!requireLogin(req, res)) return; res.json(loadReports(req)); });
+
+// ---- pembatasan laporan per database (slug) ----
+// Aturan dari env REPORT_ACCESS (JSON) atau berkas data/access.json (dibaca ulang bila berubah, tanpa restart):
+//   { "default": "*", "slugs": { "sarana*-pg.zahironline.com": ["jual_pilih"], "demojapex*": ["bb_usd","tb_valas","jurnal_all"] } }
+// Kunci = slug database (boleh pakai *) atau id perusahaan; nilai = daftar id laporan ("*" = semua). Bila beberapa pola cocok, yang terpanjang dipakai.
+// Database yang tidak cocok memakai "default" (bawaan "*" = semua laporan; [] = tidak ada laporan).
+// Ditegakkan di server: data custom query (/zapi) dan ekspor langsung hanya untuk custom query milik laporan yang diizinkan.
+const ACCESS_FILE = path.join(DATA_DIR, 'access.json');
+// custom query yang dipakai laporan bawaan (samakan dengan CATALOG di public/index.html)
+const BUILTIN_CQ = { bb: ['bb_trx', 'bb_saldo_awal', 'buku_besar_faktur_invoice'], bb_usd: ['bb_trx_valas', 'bb_saldo_awal_valas'],
+  tb_valas: ['bb_saldo_awal_valas', 'tb_laba_berjalan_valas'], jurnal_all: ['jurnal_all_trx'], jual_pilih: ['penjualan_pilih_faktur'] };
+let ACCESS_CACHE = { key: null, rules: null, error: null };
+function accessRules() {
+  if (process.env.REPORT_ACCESS) {
+    if (ACCESS_CACHE.key !== 'env') { try { ACCESS_CACHE = { key: 'env', rules: JSON.parse(process.env.REPORT_ACCESS), error: null }; } catch (e) { ACCESS_CACHE = { key: 'env', rules: null, error: 'REPORT_ACCESS bukan JSON yang valid: ' + e.message }; } }
+    return ACCESS_CACHE;
+  }
+  let st; try { st = fs.statSync(ACCESS_FILE); } catch { ACCESS_CACHE = { key: 'none', rules: null, error: null }; return ACCESS_CACHE; }
+  const key = 'file:' + st.mtimeMs + ':' + st.size;
+  if (ACCESS_CACHE.key !== key) { try { ACCESS_CACHE = { key, rules: JSON.parse(fs.readFileSync(ACCESS_FILE, 'utf8')), error: null }; } catch (e) { ACCESS_CACHE = { key, rules: null, error: 'data/access.json bukan JSON yang valid: ' + e.message }; } }
+  return ACCESS_CACHE;
+}
+const globRe = p => new RegExp('^' + String(p).trim().toLowerCase().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
+// null = semua laporan boleh; Set = id laporan yang boleh. Berkas aturan rusak → tidak ada laporan (lebih aman daripada membuka semua).
+function allowedReports(req) {
+  const { rules, error } = accessRules(); if (error) return new Set();
+  if (!rules || typeof rules !== 'object') return null;
+  const slug = String(req.get('x-zahir-slug') || '').trim().toLowerCase(), company = String(req.get('x-zahir-company') || '').trim().toLowerCase();
+  let best = null, bestLen = -1;
+  for (const [pat, list] of Object.entries(rules.slugs || {})) {
+    const re = globRe(pat); if (!((slug && re.test(slug)) || (company && re.test(company)))) continue;
+    if (pat.length > bestLen) { best = list; bestLen = pat.length; }
+  }
+  const list = best ?? (rules.default ?? '*');
+  if (list === '*' || (Array.isArray(list) && list.includes('*'))) return null;
+  return new Set((Array.isArray(list) ? list : [list]).map(String));
+}
+function allowedCq(req, allow) {
+  const out = new Set();
+  for (const id of allow) for (const cq of BUILTIN_CQ[id] || []) out.add(cq);
+  for (const r of loadReports(req)) if (allow.has(r.id)) for (const cq of [r.cq, r.cqTrx, r.cqSaldo]) if (cq) out.add(String(cq));
+  return out;
+}
+app.get('/access', (req, res) => { const a = allowedReports(req); const { error } = accessRules(); res.json(a ? { all: false, reports: [...a], error } : { all: true }); });
+
+app.get('/reports', (req, res) => { if (!requireLogin(req, res)) return; const a = allowedReports(req); const list = loadReports(req); res.json(a ? list.filter(r => a.has(r.id)) : list); });
 app.post('/reports', (req, res) => {
   if (!requireLogin(req, res)) return;
+  if (allowedReports(req)) return res.status(403).json({ error: 'Akses laporan untuk database ini dibatasi — desain laporan tidak bisa diubah. Hubungi admin.' });
   const r = req.body || {};
   if (!r.title || !r.cq) return res.status(400).json({ error: 'Judul dan nama custom query wajib diisi' });
   r.cq = String(r.cq).trim().replace(/^.*custom_queries\//, '').replace(/[?#].*$/, '');
@@ -407,6 +463,7 @@ app.post('/reports', (req, res) => {
 });
 app.delete('/reports/:id', (req, res) => {
   if (!requireLogin(req, res)) return;
+  if (allowedReports(req)) return res.status(403).json({ error: 'Akses laporan untuk database ini dibatasi — desain laporan tidak bisa dihapus. Hubungi admin.' });
   const list = loadReports(req).filter(x => x.id !== req.params.id); saveReports(req, list); res.json({ ok: true });
 });
 
@@ -628,6 +685,12 @@ async function runJob(job, b) {
 app.post('/export/job', (req, res) => {
   if (!requireLogin(req, res)) return;
   const b = req.body || {}; if (!b.report || !b.filters) return res.status(400).json({ error: 'Permintaan tidak lengkap' });
+  {   // pembatasan per database (slug/perusahaan dikirim di body untuk ekspor langsung)
+    const hdr = { 'x-zahir-slug': b.slug || '', 'x-zahir-company': b.company || '' }; const rq = { get: h => hdr[String(h).toLowerCase()] };
+    const allow = allowedReports(rq);
+    if (allow) { const ok = allowedCq(rq, allow); const used = [b.report.cq, b.report.cqTrx, b.report.cqSaldo, b.report.legacyCq].filter(Boolean);
+      if (!allow.has(String(b.report.id)) || used.some(c => !ok.has(String(c)))) return res.status(403).json({ error: 'Akses ditolak: laporan ini tidak diizinkan untuk database ini.' }); }
+  }
   const id = crypto.randomBytes(8).toString('hex');
   const job = { id, got: 0, expect: 0, done: 0, total: 0, stage: 'Memulai…', url: null, error: null, at: Date.now() };
   JOBS.set(id, job);
