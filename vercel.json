@@ -7,7 +7,7 @@
   "functions": {
     "api/index.js": {
       "maxDuration": 300,
-      "includeFiles": "{package.json,public/**,custom_queries/**,node_modules/exceljs/dist/exceljs.min.js}"
+      "includeFiles": "{package.json,access.json,public/**,custom_queries/**,node_modules/exceljs/dist/exceljs.min.js}"
     }
   },
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]

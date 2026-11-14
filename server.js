@@ -298,11 +298,13 @@ async function zahirCqIndex(base, headers, sq) {
 app.post('/cq/ensure', async (req, res) => {
   try {
     const base = normServer(req.get('x-zahir-base')); const { headers, slug } = zahirHeaders(req); const sq = slug ? '&slug=' + encodeURIComponent(slug) : '';
+    // database yang dibatasi: hanya custom query milik laporan yang diizinkan yang diperiksa/dibuat
+    const allow = allowedReports(req), want = allow && allowedCq(req, allow), cqList = bundledCq().filter(d => !want || want.has(d.name));
     let idx = await zahirCqIndex(base, headers, sq);
     if (!idx.ok) {
       // server tanpa endpoint daftar (404 untuk /custom_queries): periksa satu per satu lewat nama — /api/v3/custom_queries/<nama> selain 404 berarti sudah ada
       const map = {}; let probed = 0;
-      for (const d of bundledCq()) {
+      for (const d of cqList) {
         try { const r = await zfetch(`${base}/api/v3/custom_queries/${encodeURIComponent(d.name)}?$page=1&$per_page=1${sq}`, headers); probed++; if (r.status === 401) { const e = new Error('Login ditolak (401)'); e.status = 401; throw e; } if (r.status !== 404) map[d.name] = true; }
         catch (e) { if (e.status === 401) throw e; }
       }
@@ -310,7 +312,7 @@ app.post('/cq/ensure', async (req, res) => {
       idx = { ok: true, map };
     }
     const out = [];
-    for (const d of bundledCq()) {
+    for (const d of cqList) {
       if (d.name in idx.map) {
         // versi lama bb_trx_valas belum membawa mata uang per baris (jurnalvc.currency_id) & kurs → diperbarui langsung lewat PUT /custom_queries/<id> (tanpa hapus)
         let status = 'ada';
@@ -414,15 +416,20 @@ const ACCESS_FILE = path.join(DATA_DIR, 'access.json');
 const BUILTIN_CQ = { bb: ['bb_trx', 'bb_saldo_awal', 'buku_besar_faktur_invoice'], bb_usd: ['bb_trx_valas', 'bb_saldo_awal_valas'],
   tb_valas: ['bb_saldo_awal_valas', 'tb_laba_berjalan_valas'], jurnal_all: ['jurnal_all_trx'], jual_pilih: ['penjualan_pilih_faktur'] };
 let ACCESS_CACHE = { key: null, rules: null, error: null };
+// Urutan sumber aturan: env REPORT_ACCESS → data/access.json (server sendiri) → access.json di folder aplikasi (ikut repo/deploy, cocok untuk Vercel).
+const APP_ACCESS_FILE = path.join(__dirname, 'access.json');
 function accessRules() {
   if (process.env.REPORT_ACCESS) {
-    if (ACCESS_CACHE.key !== 'env') { try { ACCESS_CACHE = { key: 'env', rules: JSON.parse(process.env.REPORT_ACCESS), error: null }; } catch (e) { ACCESS_CACHE = { key: 'env', rules: null, error: 'REPORT_ACCESS bukan JSON yang valid: ' + e.message }; } }
+    if (ACCESS_CACHE.key !== 'env') { try { ACCESS_CACHE = { key: 'env', source: 'env REPORT_ACCESS', rules: JSON.parse(process.env.REPORT_ACCESS), error: null }; } catch (e) { ACCESS_CACHE = { key: 'env', source: 'env REPORT_ACCESS', rules: null, error: 'REPORT_ACCESS bukan JSON yang valid: ' + e.message }; } }
     return ACCESS_CACHE;
   }
-  let st; try { st = fs.statSync(ACCESS_FILE); } catch { ACCESS_CACHE = { key: 'none', rules: null, error: null }; return ACCESS_CACHE; }
-  const key = 'file:' + st.mtimeMs + ':' + st.size;
-  if (ACCESS_CACHE.key !== key) { try { ACCESS_CACHE = { key, rules: JSON.parse(fs.readFileSync(ACCESS_FILE, 'utf8')), error: null }; } catch (e) { ACCESS_CACHE = { key, rules: null, error: 'data/access.json bukan JSON yang valid: ' + e.message }; } }
-  return ACCESS_CACHE;
+  for (const [file, label] of [[ACCESS_FILE, 'data/access.json'], [APP_ACCESS_FILE, 'access.json']]) {
+    let st; try { st = fs.statSync(file); } catch { continue; }
+    const key = 'file:' + file + ':' + st.mtimeMs + ':' + st.size;
+    if (ACCESS_CACHE.key !== key) { try { ACCESS_CACHE = { key, source: label, rules: JSON.parse(fs.readFileSync(file, 'utf8')), error: null }; } catch (e) { ACCESS_CACHE = { key, source: label, rules: null, error: label + ' bukan JSON yang valid: ' + e.message }; } }
+    return ACCESS_CACHE;
+  }
+  ACCESS_CACHE = { key: 'none', source: null, rules: null, error: null }; return ACCESS_CACHE;
 }
 const globRe = p => new RegExp('^' + String(p).trim().toLowerCase().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
 // null = semua laporan boleh; Set = id laporan yang boleh. Berkas aturan rusak → tidak ada laporan (lebih aman daripada membuka semua).
@@ -445,7 +452,7 @@ function allowedCq(req, allow) {
   for (const r of loadReports(req)) if (allow.has(r.id)) for (const cq of [r.cq, r.cqTrx, r.cqSaldo]) if (cq) out.add(String(cq));
   return out;
 }
-app.get('/access', (req, res) => { const a = allowedReports(req); const { error } = accessRules(); res.json(a ? { all: false, reports: [...a], error } : { all: true }); });
+app.get('/access', (req, res) => { const a = allowedReports(req); const { error, source } = accessRules(); res.json(a ? { all: false, reports: [...a], error, source } : { all: true, source, slug: req.get('x-zahir-slug') || null }); });
 
 app.get('/reports', (req, res) => { if (!requireLogin(req, res)) return; const a = allowedReports(req); const list = loadReports(req); res.json(a ? list.filter(r => a.has(r.id)) : list); });
 app.post('/reports', (req, res) => {

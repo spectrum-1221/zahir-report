@@ -255,8 +255,11 @@ Katalog → **Penjualan → Penjualan per Pelanggan (pilih faktur)**.
   sisa piutang = `sales.saldo` saat ini (bukan per tanggal filter); jatuh tempo = `term_of_payments.due_date`.
 
 ## Pembatasan laporan per database (v2.40)
-Admin bisa menentukan laporan apa saja yang boleh dibuka untuk database (slug) tertentu. Aturan dibaca dari env `REPORT_ACCESS`
-(JSON — untuk Vercel/Docker/Kubernetes) atau berkas `data/access.json` di folder data (dibaca ulang otomatis bila diubah, tanpa restart).
+Admin bisa menentukan laporan apa saja yang boleh dibuka untuk database (slug) tertentu. Aturan dibaca dari sumber pertama yang ada:
+1. env `REPORT_ACCESS` (isi JSON),
+2. `data/access.json` di folder data server (dibaca ulang otomatis bila diubah, tanpa restart),
+3. `access.json` di folder aplikasi — ikut repo dan ikut ter-deploy (Vercel/Docker), cukup ubah lalu push.
+
 Contoh lengkap: `access.example.json`.
 
 ```json
@@ -274,9 +277,11 @@ Contoh lengkap: `access.example.json`.
 - `default` berlaku untuk database yang tidak cocok dengan pola mana pun: `"*"` (bawaan) = semua laporan, `[]` = tidak ada laporan (mode daftar-putih).
 - Tanpa env/berkas aturan, semua laporan terbuka seperti sebelumnya. Berkas aturan yang JSON-nya rusak = **tidak ada** laporan (pesan kesalahan tampil di katalog), bukan terbuka semua.
 
+Cek aturan yang aktif: `GET /access` (dengan header `x-zahir-slug`) mengembalikan daftar laporan yang diizinkan dan `source` (sumber aturan yang dipakai).
+
 Yang terjadi pada database yang dibatasi:
 - Katalog hanya menampilkan laporan yang diizinkan; tombol *+ Laporan Baru* dan ✎ disembunyikan, dan server menolak simpan/hapus desain (403).
 - **Ditegakkan di server**: proxy `/zapi` hanya meneruskan pengambilan data custom query milik laporan yang diizinkan (custom query laporan bawaan
-  ada di `BUILTIN_CQ` di `server.js` — samakan bila menambah laporan bawaan); daftar/membuat/mengubah custom query lewat proxy ditolak; *Ekspor langsung* juga diperiksa.
+  ada di `BUILTIN_CQ` di `server.js` — samakan bila menambah laporan bawaan); daftar/membuat/mengubah custom query lewat proxy ditolak; *Ekspor langsung* juga diperiksa. Tombol *Periksa custom query bawaan* hanya memeriksa/membuat custom query milik laporan yang diizinkan.
   Data master untuk filter (akun, kontak, departemen, …) tetap bisa dibaca.
 - Pembatasan ini berlaku untuk pemakaian lewat Zahir Insight. Hak akses data di Zahir Online sendiri tetap diatur dari pengaturan pengguna Zahir.
