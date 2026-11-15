@@ -1,0 +1,211 @@
+{
+  "v": 1,
+  "accounts": {
+    "11100": {
+      "pos": "bs_kas",
+      "cf": "",
+      "link": ""
+    },
+    "11110": {
+      "pos": "bs_kas",
+      "cf": "",
+      "link": ""
+    },
+    "11200": {
+      "pos": "bs_kas",
+      "cf": "",
+      "link": ""
+    },
+    "11210": {
+      "pos": "bs_kas",
+      "cf": "",
+      "link": ""
+    },
+    "11220": {
+      "pos": "bs_kas",
+      "cf": "",
+      "link": ""
+    },
+    "11230": {
+      "pos": "bs_kas",
+      "cf": "",
+      "link": ""
+    },
+    "11300": {
+      "pos": "bs_piut",
+      "cf": "",
+      "link": ""
+    },
+    "11400": {
+      "pos": "bs_kel_l",
+      "cf": "",
+      "link": ""
+    },
+    "11410": {
+      "pos": "bs_kel_pny",
+      "cf": "",
+      "link": ""
+    },
+    "12100": {
+      "pos": "bs_at",
+      "cf": "",
+      "link": ""
+    },
+    "12110": {
+      "pos": "bs_at_ak",
+      "cf": "",
+      "link": ""
+    },
+    "12200": {
+      "pos": "bs_kel_tl",
+      "cf": "",
+      "link": ""
+    },
+    "12210": {
+      "pos": "bs_kel_ak",
+      "cf": "",
+      "link": ""
+    },
+    "21100": {
+      "pos": "bs_bymhd",
+      "cf": "",
+      "link": ""
+    },
+    "21200": {
+      "pos": "bs_ljp_lain",
+      "cf": "",
+      "link": ""
+    },
+    "22100": {
+      "pos": "bs_imb",
+      "cf": "",
+      "link": ""
+    },
+    "31100": {
+      "pos": "eq_z",
+      "cf": "",
+      "link": ""
+    },
+    "31200": {
+      "pos": "eq_i",
+      "cf": "",
+      "link": ""
+    },
+    "31300": {
+      "pos": "eq_a",
+      "cf": "",
+      "link": ""
+    },
+    "31400": {
+      "pos": "eq_n",
+      "cf": "",
+      "link": ""
+    },
+    "41100": {
+      "pos": "z_in_ent",
+      "cf": "",
+      "link": ""
+    },
+    "41200": {
+      "pos": "z_in_ind",
+      "cf": "",
+      "link": ""
+    },
+    "42100": {
+      "pos": "i_in_terikat",
+      "cf": "",
+      "link": ""
+    },
+    "42200": {
+      "pos": "i_in_bebas",
+      "cf": "",
+      "link": ""
+    },
+    "43100": {
+      "pos": "a_in_z",
+      "cf": "",
+      "link": ""
+    },
+    "43200": {
+      "pos": "a_in_i",
+      "cf": "",
+      "link": ""
+    },
+    "51100": {
+      "pos": "z_out_fakir",
+      "cf": "",
+      "link": ""
+    },
+    "51200": {
+      "pos": "z_out_miskin",
+      "cf": "",
+      "link": ""
+    },
+    "51300": {
+      "pos": "z_out_sabil",
+      "cf": "",
+      "link": ""
+    },
+    "51400": {
+      "pos": "z_out_ibnu",
+      "cf": "",
+      "link": ""
+    },
+    "51900": {
+      "pos": "z_amil",
+      "cf": "",
+      "link": ""
+    },
+    "52100": {
+      "pos": "i_out_terikat",
+      "cf": "",
+      "link": ""
+    },
+    "52200": {
+      "pos": "i_out_bebas",
+      "cf": "",
+      "link": ""
+    },
+    "52300": {
+      "pos": "i_out_kel",
+      "cf": "",
+      "link": ""
+    },
+    "52900": {
+      "pos": "i_amil",
+      "cf": "",
+      "link": ""
+    },
+    "61100": {
+      "pos": "a_out_peg",
+      "cf": "",
+      "link": ""
+    },
+    "61200": {
+      "pos": "a_out_susut",
+      "cf": "",
+      "link": ""
+    },
+    "61300": {
+      "pos": "a_out_umum",
+      "cf": "",
+      "link": ""
+    },
+    "61400": {
+      "pos": "i_out_bebas",
+      "cf": "",
+      "link": ""
+    },
+    "71100": {
+      "pos": "n_in_giro",
+      "cf": "",
+      "link": ""
+    },
+    "81100": {
+      "pos": "n_out",
+      "cf": "",
+      "link": ""
+    }
+  },
+  "updated": "2026-11-15T10:40:23.639Z"
+}
