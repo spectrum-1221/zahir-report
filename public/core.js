@@ -673,7 +673,8 @@
     const zero = () => ({ u0: 0, u30: 0, u60: 0, u90: 0, saldo: 0, total: 0, bayar: 0 });
     const add = (t, x) => { for (const k of PICK_NUM) t[k] += x[k] || 0; };
     const isOpen = r => r.status === 'draft' || Math.abs(num(r.saldo)) >= 0.005;   // saldo minus (lebih bayar/retur melebihi sisa) tetap tampil, sama seperti Umur Piutang Zahir
-    const ketOf = r => r.status === 'draft' ? 'Draft' : num(r.saldo) <= -0.005 ? 'Lebih bayar' : num(r.bayar) >= 0.005 ? 'Dicicil/retur' : '';
+    const ST = { draft: 'Draft', pending: 'Menunggu persetujuan', waiting_approval: 'Menunggu persetujuan', void: 'Void', voided: 'Void', canceled: 'Batal', cancelled: 'Batal', closed: 'Ditutup', rejected: 'Ditolak' };
+    const ketOf = r => r.status && r.status !== 'approved' ? (ST[r.status] || 'Status: ' + r.status) : num(r.saldo) <= -0.005 ? 'Lebih bayar' : num(r.bayar) >= 0.005 ? 'Dicicil/retur' : '';
     function pickRows(list, { asOf, q = '' } = {}) {
       const s = String(q || '').trim().toLowerCase();
       const src = sortRows(list.filter(r => isOpen(r) && (!s || [r.no_faktur, r.nama_pelanggan, r.kode_pelanggan, r.keterangan].some(v => String(v || '').toLowerCase().includes(s)))), true);
@@ -702,10 +703,12 @@
       }
       if (src.length) out.push({ __tot: true, __grand: true, nama: 'GRAND TOTAL', ...grand });
       // pemisah agar bisa dicocokkan dengan Umur Piutang Zahir (yang tidak memuat faktur draft)
-      const dr = src.filter(r => r.status === 'draft');
-      if (dr.length) { const t = zero(); for (const r of dr) { const x = { u0: 0, u30: 0, u60: 0, u90: 0, saldo: num(r.saldo), total: num(r.total), bayar: 0 }; x[bucket(ageDays(r.tanggal, asOf))] = x.saldo; add(t, x); }
+      // pembanding dengan Umur Piutang Zahir Online yang hanya memuat faktur approved
+      const na = src.filter(r => r.status && r.status !== 'approved');
+      if (na.length) { const t = zero(); for (const r of na) { const x = { u0: 0, u30: 0, u60: 0, u90: 0, saldo: num(r.saldo), total: num(r.total), bayar: num(r.bayar) }; x[bucket(ageDays(r.tanggal, asOf))] = x.saldo; add(t, x); }
         const ap = {}; for (const k of PICK_NUM) ap[k] = grand[k] - t[k];
-        out.push({ __tot: true, __gt: true, nama: `  Faktur draft (${dr.length})`, ...t }, { __tot: true, __gt: true, nama: '  Piutang approved (= Umur Piutang Zahir)', ...ap }); }
+        const by = {}; for (const r of na) { const k = ST[r.status] || r.status; by[k] = (by[k] || 0) + 1; }
+        out.push({ __tot: true, __gt: true, nama: '  Faktur belum approved: ' + Object.entries(by).map(([k, n]) => `${k} ${n}`).join(', '), ...t }, { __tot: true, __gt: true, nama: '  Piutang approved (= Umur Piutang Zahir)', ...ap }); }
       const neg = src.filter(r => r.status !== 'draft' && num(r.saldo) <= -0.005);
       if (neg.length) out.push({ __tot: true, __gt: true, nama: `  Termasuk saldo minus / lebih bayar (${neg.length})`, u0: null, u30: null, u60: null, u90: null, saldo: neg.reduce((x, r) => x + num(r.saldo), 0), total: null, bayar: null });
       return out;
