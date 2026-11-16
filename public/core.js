@@ -672,8 +672,8 @@
       || d10(a.tanggal).localeCompare(d10(b.tanggal)) || coll(a.no_faktur, b.no_faktur));
     const zero = () => ({ u0: 0, u30: 0, u60: 0, u90: 0, saldo: 0, total: 0, bayar: 0 });
     const add = (t, x) => { for (const k of PICK_NUM) t[k] += x[k] || 0; };
-    const isOpen = r => r.status === 'draft' || num(r.saldo) >= 0.005;
-    const ketOf = r => r.status === 'draft' ? 'Draft' : num(r.bayar) >= 0.005 ? 'Dicicil/retur' : '';
+    const isOpen = r => r.status === 'draft' || Math.abs(num(r.saldo)) >= 0.005;   // saldo minus (lebih bayar/retur melebihi sisa) tetap tampil, sama seperti Umur Piutang Zahir
+    const ketOf = r => r.status === 'draft' ? 'Draft' : num(r.saldo) <= -0.005 ? 'Lebih bayar' : num(r.bayar) >= 0.005 ? 'Dicicil/retur' : '';
     function pickRows(list, { asOf, q = '' } = {}) {
       const s = String(q || '').trim().toLowerCase();
       const src = sortRows(list.filter(r => isOpen(r) && (!s || [r.no_faktur, r.nama_pelanggan, r.kode_pelanggan, r.keterangan].some(v => String(v || '').toLowerCase().includes(s)))), true);
@@ -706,6 +706,8 @@
       if (dr.length) { const t = zero(); for (const r of dr) { const x = { u0: 0, u30: 0, u60: 0, u90: 0, saldo: num(r.saldo), total: num(r.total), bayar: 0 }; x[bucket(ageDays(r.tanggal, asOf))] = x.saldo; add(t, x); }
         const ap = {}; for (const k of PICK_NUM) ap[k] = grand[k] - t[k];
         out.push({ __tot: true, __gt: true, nama: `  Faktur draft (${dr.length})`, ...t }, { __tot: true, __gt: true, nama: '  Piutang approved (= Umur Piutang Zahir)', ...ap }); }
+      const neg = src.filter(r => r.status !== 'draft' && num(r.saldo) <= -0.005);
+      if (neg.length) out.push({ __tot: true, __gt: true, nama: `  Termasuk saldo minus / lebih bayar (${neg.length})`, u0: null, u30: null, u60: null, u90: null, saldo: neg.reduce((x, r) => x + num(r.saldo), 0), total: null, bayar: null });
       return out;
     }
     // laporan penjualan: SUB JLH = sisa piutang (nilai faktur − cicilan − retur; draft = nilai faktur)

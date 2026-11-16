@@ -1,6 +1,6 @@
 {
   "name": "zahir-insight",
-  "version": "2.43.1",
+  "version": "2.43.2",
   "description": "Buku Besar viewer (Faktur Pajak & Invoice) - ambil data dari Zahir custom_queries API, render sendiri",
   "main": "desktop/main.js",
   "scripts": {

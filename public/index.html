@@ -1504,7 +1504,7 @@ async function runReport({force=false}={}){
         'isort[department.name]':1,'isort[customer.classification.name]':1,'isort[customer.name]':1,'isort[date]':1}).toString();
       ov.sub('Mengambil piutang dari laporan umur piutang…');
       const first=await zgetRetry('/api/v2/reports/receivable_summary?'+qs(1)); const pages=Math.max(1,+first.page_context?.total_pages||1); T.total=pages+1;
-      const take=j=>{ const xs=(j.results||[]).map(SalesPick.fromReceivable).filter(x=>x.saldo>=0.005&&(allOpen?x.tanggal<=d2:x.tanggal>=d1&&x.tanggal<=d2)&&SalesPick.matches(x,F.base,F.combos)); rows.push(...xs); T.rows(xs.length); T.done(); };
+      const seen=new Set(); const take=j=>{ const xs=(j.results||[]).map(SalesPick.fromReceivable).filter(x=>!seen.has(x.transaction_id)&&seen.add(x.transaction_id)&&Math.abs(x.saldo)>=0.005&&(allOpen?x.tanggal<=d2:x.tanggal>=d1&&x.tanggal<=d2)&&SalesPick.matches(x,F.base,F.combos)); rows.push(...xs); T.rows(xs.length); T.done(); };
       take(first);
       for(let p=2;p<=pages;p++) take(await zgetRetry('/api/v2/reports/receivable_summary?'+qs(p)));
       // faktur draft (belum jadi piutang): custom query, filter dikirim ke server
