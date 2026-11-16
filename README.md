@@ -301,3 +301,19 @@ Kategori **PSAK 109** di katalog memakai custom query PSAK 109 yang sama dengan 
 Custom query ikut di `custom_queries/` dan dipasang lewat *Periksa custom query bawaan* bila belum ada. Ekspor Excel: angka asli (bisa dijumlah).
 Catatan dari isi query: neraca menggabungkan surplus ke akun `3201010100001` (akun itu harus ada dan punya transaksi agar neraca seimbang);
 saldo akhir dana (laporan aktivitas) dan saldo kas akhir (arus kas) dihitung dari seluruh riwayat tanpa batas tanggal akhir.
+
+## Laba Rugi PSAK 118 (v2.42)
+Kategori **PSAK 118** — laporan laba rugi format PSAK 118 (adopsi IFRS 18, berlaku 1 Januari 2027), susunan mengikuti contoh IAI:
+penjualan → laba bruto → beban operasi → **laba operasi** → investasi → **laba sebelum pendanaan dan pajak penghasilan** → pendanaan →
+laba sebelum pajak → pajak penghasilan → (operasi dihentikan) → **laba**. Kolom kedua = periode yang sama tahun sebelumnya.
+
+| id | Laporan |
+|---|---|
+| `psak118_lr` | Laporan Laba Rugi (PSAK 118) — filter periode, departemen, proyek, kode biaya; *Rincian per akun*; ekspor Excel |
+| `psak118_map` | Pemetaan Akun PSAK 118 — tiap akun pendapatan/beban → pos laporan |
+
+- Data: custom query `bb_saldo_awal` (mutasi per akun), tidak perlu custom query baru.
+- Akun yang belum disimpan pemetaannya ditebak dari klasifikasi Zahir (4 penjualan, 5 beban pokok, 6 beban usaha) dan namanya
+  (mis. *beban bunga pinjaman/sewa* → pendanaan, *pendapatan bunga/dividen* → investasi, *entitas asosiasi* → investasi, *pajak penghasilan* → pajak).
+  Akun tanpa pos masuk kategori operasi (kategori sisa menurut PSAK 118).
+- Pemetaan disimpan di server (`data/psak118.<slug>`); versi online (Vercel) menyimpannya di browser — pakai *Ekspor*/*Impor*.
