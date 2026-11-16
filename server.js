@@ -414,7 +414,7 @@ function requireLogin(req, res){ if (!req.get('x-zahir-token')) { res.status(401
 const ACCESS_FILE = path.join(DATA_DIR, 'access.json');
 // custom query yang dipakai laporan bawaan (samakan dengan CATALOG di public/index.html)
 const BUILTIN_CQ = { bb: ['bb_trx', 'bb_saldo_awal', 'buku_besar_faktur_invoice'], bb_usd: ['bb_trx_valas', 'bb_saldo_awal_valas'],
-  tb_valas: ['bb_saldo_awal_valas', 'tb_laba_berjalan_valas'], jurnal_all: ['jurnal_all_trx'], jual_pilih: ['penjualan_pilih_faktur'] ,
+  tb_valas: ['bb_saldo_awal_valas', 'tb_laba_berjalan_valas'], jurnal_all: ['jurnal_all_trx'], jual_pilih: ['penjualan_pilih_faktur', 'penjualan_draft_faktur'] ,
   psak_neraca: ['neraca_psak109'], psak_aktivitas: ['laporan_aktivitas_psak109'], psak_perubahan_dana: ['perubahan_dana_psak109'],
   psak_ak_langsung: ['arus_kas_langsung'], psak_ak_tl: ['arus_kas_tidak_langsung'], psak_calk: ['catatan_atas_laporan_keuangan'] ,
   psak118_lr: ['bb_saldo_awal'], psak118_map: ['bb_saldo_awal'] };

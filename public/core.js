@@ -634,9 +634,10 @@
   // pickRows   → daftar pilih ala Umur Piutang: per klasifikasi → pelanggan → faktur, umur dihitung dari tanggal faktur s/d asOf.
   // reportRows → laporan dari faktur terpilih: NO / NAMA TOKO / NO.FAKT. / TANGGAL / SUB JLH / TTL JLH.
   const SalesPick = (() => {
-    const PICK_COLS = ['nama', 'tanggal', 'no_faktur', 'tgl_jatuh_tempo', 'u0', 'u30', 'u60', 'u90', 'saldo', 'total'];
-    const PICK_LABELS = { nama: 'NAMA', tanggal: 'TANGGAL FAKTUR', no_faktur: 'NO. FAKTUR', tgl_jatuh_tempo: 'JATUH TEMPO', u0: '0-30 HARI', u30: '31-60 HARI', u60: '61-90 HARI', u90: '>90 HARI', saldo: 'TOTAL', total: 'NILAI FAKTUR' };
-    const PICK_NUM = ['u0', 'u30', 'u60', 'u90', 'saldo', 'total'];
+    // daftar faktur ala Umur Piutang Zahir Online (receivable_summary): departemen → klasifikasi pelanggan → pelanggan → faktur
+    const PICK_COLS = ['nama', 'tanggal', 'no_faktur', 'tgl_jatuh_tempo', 'ket', 'u0', 'u30', 'u60', 'u90', 'saldo', 'total', 'bayar'];
+    const PICK_LABELS = { nama: 'NAMA', tanggal: 'TANGGAL FAKTUR', no_faktur: 'NO. FAKTUR', tgl_jatuh_tempo: 'JATUH TEMPO', ket: 'KET.', u0: '0-30 HARI', u30: '31-60 HARI', u60: '61-90 HARI', u90: '>90 HARI', saldo: 'SISA PIUTANG', total: 'NILAI FAKTUR', bayar: 'BAYAR / RETUR' };
+    const PICK_NUM = ['u0', 'u30', 'u60', 'u90', 'saldo', 'total', 'bayar'];
     const REPORT_COLS = ['no', 'nama_toko', 'no_faktur', 'tanggal', 'sub_jlh', 'ttl_jlh'];
     const REPORT_LABELS = { no: 'NO', nama_toko: 'NAMA TOKO', no_faktur: 'NO.FAKT.', tanggal: 'TANGGAL', sub_jlh: 'SUB JLH', ttl_jlh: 'TTL JLH' };
     const REPORT_NUM = ['sub_jlh', 'ttl_jlh'];
@@ -646,51 +647,78 @@
     const bucket = days => days <= 30 ? 'u0' : days <= 60 ? 'u30' : days <= 90 ? 'u60' : 'u90';
     const coll = (a, b) => String(a || '').localeCompare(String(b || ''), 'id', { sensitivity: 'base' });
     const key = r => String(r.transaction_id ?? r.no_faktur ?? '');
-    const sortRows = (list, byClass) => list.slice().sort((a, b) =>
-      (byClass ? coll(a.klasifikasi, b.klasifikasi) : 0) || coll(a.nama_pelanggan, b.nama_pelanggan) || coll(a.contact_id, b.contact_id)
+    const r2 = v => Math.round(num(v) * 100) / 100;
+    // baris dari /api/v2/reports/receivable_summary (faktur approved; nilai piutang, pembayaran+retur, sisa per tanggal laporan)
+    function fromReceivable(x) {
+      const sm = (x.employees || [])[0]?.contact || {};
+      const total = r2(x.receivable?.amount), saldo = r2(x.balance?.amount), bayar = r2(x.payment?.amount);
+      return { transaction_id: x.id, status: x.status || 'approved', no_faktur: x.number || '', tanggal: d10(x.date), jatuh_tempo: d10((x.term_of_payments || [])[0]?.due_date) || null,
+        contact_id: x.customer?.id || '', kode_pelanggan: x.customer?.code || '', nama_pelanggan: x.customer?.name || '',
+        customer_classification_id: x.customer?.classification?.id || '', klasifikasi: x.customer?.classification?.name || '',
+        department_id: x.department?.id || '', dept: x.department?.name || '', project_id: x.project?.id || '',
+        salesman_id: sm.id || '', salesman_classification_id: sm.classification?.id || '', keterangan: x.description || '',
+        total, bayar, saldo };
+    }
+    // baris dari custom query penjualan_draft_faktur (faktur draft: belum jadi piutang, sisa = nilai faktur)
+    const fromDraft = x => ({ ...x, status: 'draft', tanggal: d10(x.tanggal), total: r2(x.total), bayar: 0, saldo: r2(x.total) });
+    // filter Zahir Insight (pelanggan, klasifikasi, departemen, proyek, salesman) diterapkan di sini untuk data receivable_summary
+    const FILTER_KEYS = ['contact_id', 'customer_classification_id', 'department_id', 'project_id', 'salesman_id', 'salesman_classification_id'];
+    function matches(row, base, combos) {
+      const ok = f => FILTER_KEYS.every(k => f[k] == null || f[k] === '' || String(row[k]) === String(f[k]));
+      return (combos && combos.length ? combos : [{}]).some(c => ok({ ...base, ...c }));
+    }
+    const sortRows = (list, grouped) => list.slice().sort((a, b) =>
+      (grouped ? coll(a.dept, b.dept) || coll(a.klasifikasi, b.klasifikasi) : 0) || coll(a.nama_pelanggan, b.nama_pelanggan) || coll(a.contact_id, b.contact_id)
       || d10(a.tanggal).localeCompare(d10(b.tanggal)) || coll(a.no_faktur, b.no_faktur));
-    const zero = () => ({ u0: 0, u30: 0, u60: 0, u90: 0, saldo: 0, total: 0 });
+    const zero = () => ({ u0: 0, u30: 0, u60: 0, u90: 0, saldo: 0, total: 0, bayar: 0 });
     const add = (t, x) => { for (const k of PICK_NUM) t[k] += x[k] || 0; };
-    const isOpen = r => Math.abs(num(r.saldo)) >= 0.005;
-    function pickRows(list, { asOf, showPaid = false, q = '' } = {}) {
+    const isOpen = r => r.status === 'draft' || num(r.saldo) >= 0.005;
+    const ketOf = r => r.status === 'draft' ? 'Draft' : num(r.bayar) >= 0.005 ? 'Dicicil/retur' : '';
+    function pickRows(list, { asOf, q = '' } = {}) {
       const s = String(q || '').trim().toLowerCase();
-      const src = sortRows(list.filter(r => (showPaid || isOpen(r)) && (!s || [r.no_faktur, r.nama_pelanggan, r.kode_pelanggan].some(v => String(v || '').toLowerCase().includes(s)))), true);
+      const src = sortRows(list.filter(r => isOpen(r) && (!s || [r.no_faktur, r.nama_pelanggan, r.kode_pelanggan, r.keterangan].some(v => String(v || '').toLowerCase().includes(s)))), true);
       const out = []; const grand = zero(); let i = 0;
       while (i < src.length) {
-        const kls = src[i].klasifikasi || ''; const gt = zero();
-        out.push({ __kind: 'gtitle', __label: kls || '(Tanpa klasifikasi)', __lvl: 0 });
-        while (i < src.length && (src[i].klasifikasi || '') === kls) {
-          const cid = String(src[i].contact_id ?? src[i].nama_pelanggan); const head = { __k: 'jh', __cust: cid, __ids: [], nama: [src[i].nama_pelanggan, src[i].kode_pelanggan].filter(Boolean).join(' | ') };
-          out.push(head); const ct = zero();
-          while (i < src.length && (src[i].klasifikasi || '') === kls && String(src[i].contact_id ?? src[i].nama_pelanggan) === cid) {
-            const r = src[i++]; const saldo = num(r.saldo); const x = { u0: 0, u30: 0, u60: 0, u90: 0, saldo, total: num(r.total) };
-            x[bucket(ageDays(r.tanggal, asOf))] = saldo;
-            out.push({ __k: 'trx', __tid: key(r), __cust: cid, nama: '', tanggal: d10(r.tanggal), no_faktur: r.no_faktur, tgl_jatuh_tempo: d10(r.jatuh_tempo) || null, ...x });
-            head.__ids.push(key(r)); add(ct, x);
+        const dept = src[i].dept || ''; const dt = zero();
+        out.push({ __kind: 'gtitle', __label: dept || '(Tanpa departemen)', __lvl: 0 });
+        while (i < src.length && (src[i].dept || '') === dept) {
+          const kls = src[i].klasifikasi || ''; const gt = zero();
+          out.push({ __kind: 'gtitle', __label: kls || '(Tanpa klasifikasi)', __lvl: 1 });
+          while (i < src.length && (src[i].dept || '') === dept && (src[i].klasifikasi || '') === kls) {
+            const cid = String(src[i].contact_id ?? src[i].nama_pelanggan); const head = { __k: 'jh', __cust: dept + '|' + cid, __ids: [], nama: [src[i].nama_pelanggan, src[i].kode_pelanggan].filter(Boolean).join(' | ') };
+            out.push(head); const ct = zero();
+            while (i < src.length && (src[i].dept || '') === dept && (src[i].klasifikasi || '') === kls && String(src[i].contact_id ?? src[i].nama_pelanggan) === cid) {
+              const r = src[i++]; const saldo = num(r.saldo); const x = { u0: 0, u30: 0, u60: 0, u90: 0, saldo, total: num(r.total), bayar: num(r.bayar) };
+              x[bucket(ageDays(r.tanggal, asOf))] = saldo;
+              out.push({ __k: 'trx', __tid: key(r), __cust: head.__cust, __draft: r.status === 'draft', nama: '', tanggal: d10(r.tanggal), no_faktur: r.no_faktur, tgl_jatuh_tempo: d10(r.jatuh_tempo) || null, ket: ketOf(r), ...x });
+              head.__ids.push(key(r)); add(ct, x);
+            }
+            out.push({ __tot: true, __cust: head.__cust, nama: 'TOTAL', ...ct }); add(gt, ct);
           }
-          out.push({ __tot: true, __cust: cid, nama: 'TOTAL', ...ct }); add(gt, ct);
+          out.push({ __tot: true, __gt: true, nama: 'TOTAL ' + (kls || '(Tanpa klasifikasi)'), ...gt }); add(dt, gt);
         }
-        out.push({ __tot: true, __gt: true, nama: 'TOTAL ' + (kls || '(Tanpa klasifikasi)'), ...gt }); add(grand, gt);
+        out.push({ __tot: true, __gt: true, nama: 'TOTAL ' + (dept || '(Tanpa departemen)'), ...dt }); add(grand, dt);
         out.push({ __kind: 'blank' });
       }
       if (src.length) out.push({ __tot: true, __grand: true, nama: 'GRAND TOTAL', ...grand });
       return out;
     }
+    // laporan penjualan: SUB JLH = sisa piutang (nilai faktur − cicilan − retur; draft = nilai faktur)
     function reportRows(list) {
       const src = sortRows(list, false); const out = []; let no = 0, grand = 0, i = 0;
       while (i < src.length) {
         const cid = String(src[i].contact_id ?? src[i].nama_pelanggan); const start = i; let sum = 0; no++;
         while (i < src.length && String(src[i].contact_id ?? src[i].nama_pelanggan) === cid) i++;
         const n = i - start;
-        for (let j = start; j < i; j++) { const r = src[j]; const v = num(r.total); sum += v;
-          out.push({ no: j === start ? no : null, nama_toko: j === start ? r.nama_pelanggan : '', no_faktur: r.no_faktur, tanggal: d10(r.tanggal), sub_jlh: v, ttl_jlh: null, __cust: cid }); }
+        for (let j = start; j < i; j++) { const r = src[j]; const v = num(r.saldo); sum += v;
+          out.push({ no: j === start ? no : null, nama_toko: j === start ? r.nama_pelanggan : '', no_faktur: r.no_faktur + (r.status === 'draft' ? ' (draft)' : ''), __no: r.no_faktur, tanggal: d10(r.tanggal), sub_jlh: v, ttl_jlh: null, __cust: cid }); }
         if (n > 1) out[out.length - 1].ttl_jlh = sum;
         grand += sum; out.push({ __kind: 'blank' });
       }
       if (src.length) out.push({ __tot: true, no: null, nama_toko: 'GRAND TOTAL', no_faktur: '', tanggal: '', sub_jlh: grand, ttl_jlh: null });
       return out;
     }
-    return { PICK_COLS, PICK_LABELS, PICK_NUM, REPORT_COLS, REPORT_LABELS, REPORT_NUM, ageDays, bucket, pickRows, reportRows, key };
+    return { PICK_COLS, PICK_LABELS, PICK_NUM, REPORT_COLS, REPORT_LABELS, REPORT_NUM, ageDays, bucket, pickRows, reportRows, key, fromReceivable, fromDraft, matches, isOpen };
   })();
 
   return { SalesPick, fmtKode, newLabel, VALAS_LABELS, ledgerLabelOf, ledgerColsAll, dateSlash, DATE_COL_RE, ttCode, ttNorm, analyzeQuery, localPredicate, usedColumns, selectHonored, ymd, num, fmt, appendAll, monthChunks, yearChunks, planChunks, prevDay, KREDIT_SIDE, TrialBalance, DEFAULT_USD_CURRENCY_ID, fmtZ, tbLayout, tbFields, jrFields, jrLayout, JournalBuilder, tbAccountOpts, tbRowOpts, LABELS, COLS, VALAS_COLS, ledgerColsOf, LEDGER_NUM, LEDGER_GROUP, rowKind, LedgerBuilder, LegacyMerger, mergeChunks, SEP, smartSort, BARIS_RE, decodeBaris, Pivot, pivot, Summarizer, groupRows, totalOf, jasperTipe, jasperSplit, expandJasper, JASPER_PARTS, crosstabLayout, crosstabExportRow };

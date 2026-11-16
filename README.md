@@ -317,3 +317,12 @@ laba sebelum pajak → pajak penghasilan → (operasi dihentikan) → **laba**. 
   (mis. *beban bunga pinjaman/sewa* → pendanaan, *pendapatan bunga/dividen* → investasi, *entitas asosiasi* → investasi, *pajak penghasilan* → pajak).
   Akun tanpa pos masuk kategori operasi (kategori sisa menurut PSAK 118).
 - Pemetaan disimpan di server (`data/psak118.<slug>`); versi online (Vercel) menyimpannya di browser — pakai *Ekspor*/*Impor*.
+
+## Penjualan per Pelanggan (pilih faktur) — revisi v2.43
+- Sumber faktur approved: `/api/v2/reports/receivable_summary` (sama dengan laporan Umur Piutang Zahir Online), jadi nilai yang dipakai
+  adalah **sisa piutang** (nilai faktur − cicilan − retur) per tanggal akhir filter; faktur yang sudah lunas tidak ditampilkan.
+  Kolom *Bayar / Retur* dan label *Dicicil/retur* menandai faktur yang sudah berkurang.
+- Faktur **draft** ikut tampil (label *Draft*, sisa = nilai faktur) dari custom query baru `penjualan_draft_faktur`.
+- Filter tanggal: pilihan **Hari ini** (bawaan) = semua piutang yang belum lunas s/d hari ini tanpa batas tanggal faktur;
+  pilihan/rentang lain = hanya faktur bertanggal dalam rentang, sisa dihitung per tanggal akhir.
+- Pengelompokan: departemen → klasifikasi pelanggan → pelanggan. Laporan hasil centang: SUB JLH = sisa piutang.
