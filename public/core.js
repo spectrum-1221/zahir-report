@@ -701,6 +701,11 @@
         out.push({ __kind: 'blank' });
       }
       if (src.length) out.push({ __tot: true, __grand: true, nama: 'GRAND TOTAL', ...grand });
+      // pemisah agar bisa dicocokkan dengan Umur Piutang Zahir (yang tidak memuat faktur draft)
+      const dr = src.filter(r => r.status === 'draft');
+      if (dr.length) { const t = zero(); for (const r of dr) { const x = { u0: 0, u30: 0, u60: 0, u90: 0, saldo: num(r.saldo), total: num(r.total), bayar: 0 }; x[bucket(ageDays(r.tanggal, asOf))] = x.saldo; add(t, x); }
+        const ap = {}; for (const k of PICK_NUM) ap[k] = grand[k] - t[k];
+        out.push({ __tot: true, __gt: true, nama: `  Faktur draft (${dr.length})`, ...t }, { __tot: true, __gt: true, nama: '  Piutang approved (= Umur Piutang Zahir)', ...ap }); }
       return out;
     }
     // laporan penjualan: SUB JLH = sisa piutang (nilai faktur − cicilan − retur; draft = nilai faktur)

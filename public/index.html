@@ -639,7 +639,7 @@ const CATALOG = [
     // dengan kolom centang; faktur yang dicentang → laporan NO / NAMA TOKO / NO.FAKT. / TANGGAL / SUB JLH (= sisa piutang) / TTL JLH
     // Tanggal "Hari ini" = semua piutang belum lunas s/d hari ini (tanpa batas tanggal faktur); rentang lain = faktur dalam rentang, sisa per tanggal akhir
     { id:'jual_pilih', title:'Penjualan per Pelanggan (pilih faktur)', mode:'pick', src:'receivable', cq:'penjualan_draft_faktur',
-      filters:[{preset:'date',def:'today'},{preset:'contact',label:'Pelanggan'},'cclass','dept','proj','sales','sclass'] },
+      filters:[{preset:'date',ar:true},{preset:'contact',label:'Pelanggan'},'cclass','dept','proj','sales','sclass'] },
   ]},
   { category:'PSAK 109', items:[
     // laporan amil zakat dari custom query PSAK 109 (sama dengan template Jasper Zahir Online); susunan di public/psak109.js
@@ -1254,7 +1254,14 @@ async function buildFilterPanel(r){
   const defs=filtersOf(r); FV={}; const g=$('#fGrid'); g.innerHTML='';
   for(let i=0;i<defs.length;i++){
     const f=defs[i], id='f'+i, wrap=document.createElement('div');
-    if(f.type==='date'&&f.asof){   // satu tanggal (laporan per tanggal, mis. neraca): hanya date.$lte yang dikirim
+    if(f.type==='date'&&f.ar){   // seperti filter Umur Piutang Zahir: satu tanggal (semua piutang belum lunas s/d tanggal itu) atau, bila dicentang, rentang tanggal faktur
+      wrap.className='c2'; wrap.innerHTML=`<label class="pk" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-weight:500"><input type="checkbox" id="${id}x" style="width:auto;margin:0"> Filter tanggal faktur secara spesifik</label>
+        <div id="${id}one"><label>Tanggal</label><input type="date" id="${id}d"></div>
+        <div id="${id}rng" class="hide"><label>Tanggal faktur</label><div class="rng"><input type="date" id="${id}a"><span class="arr">→</span><input type="date" id="${id}b"></div></div>`;
+      g.appendChild(wrap); $('#'+id+'d').value=today(); $('#'+id+'a').value=firstDayOfMonth(); $('#'+id+'b').value=today();
+      $('#'+id+'x').onchange=()=>{ const on=$('#'+id+'x').checked; $('#'+id+'one').classList.toggle('hide',on); $('#'+id+'rng').classList.toggle('hide',!on); };
+      FV[f.key||'date']={type:'date',get:()=>$('#'+id+'x').checked?{d1:$('#'+id+'a').value,d2:$('#'+id+'b').value,preset:'range'}:{d1:$('#'+id+'d').value,d2:$('#'+id+'d').value,preset:'today'}};
+    } else if(f.type==='date'&&f.asof){   // satu tanggal (laporan per tanggal, mis. neraca): hanya date.$lte yang dikirim
       wrap.innerHTML=`<label>${esc(f.label||'Per Tanggal')}</label><input type="date" id="${id}b">`; g.appendChild(wrap); $('#'+id+'b').value=today();
       FV[f.key||'date']={type:'date',get:()=>({d1:$('#'+id+'b').value,d2:$('#'+id+'b').value,asof:true})};
     } else if(f.type==='date'){
@@ -1492,7 +1499,7 @@ async function runReport({force=false}={}){
     if(mode==='pick'&&r.src==='receivable'){
       // faktur approved: receivable_summary per tanggal akhir (sisa sudah dikurangi cicilan & retur); yang lunas dibuang
       // "Hari ini" = semua piutang belum lunas s/d hari ini; rentang lain = hanya faktur bertanggal dalam rentang
-      const allOpen=F.date.preset==='today'; rows=[]; const PER=500;
+      const allOpen=F.date.preset==='today'; rows=[]; const PER=500;   // allOpen: tanpa centang "spesifik" = semua piutang belum lunas s/d tanggal
       const qs=p=>new URLSearchParams({page:p,per_page:PER,period:'daily',date:d2,label_currency:'Base Currency',display_currency:'amount',is_balance_by_date_filter:'true',
         'isort[department.name]':1,'isort[customer.classification.name]':1,'isort[customer.name]':1,'isort[date]':1}).toString();
       ov.sub('Mengambil piutang dari laporan umur piutang…');

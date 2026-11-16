@@ -323,6 +323,7 @@ laba sebelum pajak → pajak penghasilan → (operasi dihentikan) → **laba**. 
   adalah **sisa piutang** (nilai faktur − cicilan − retur) per tanggal akhir filter; faktur yang sudah lunas tidak ditampilkan.
   Kolom *Bayar / Retur* dan label *Dicicil/retur* menandai faktur yang sudah berkurang.
 - Faktur **draft** ikut tampil (label *Draft*, sisa = nilai faktur) dari custom query baru `penjualan_draft_faktur`.
-- Filter tanggal: pilihan **Hari ini** (bawaan) = semua piutang yang belum lunas s/d hari ini tanpa batas tanggal faktur;
-  pilihan/rentang lain = hanya faktur bertanggal dalam rentang, sisa dihitung per tanggal akhir.
+- Filter tanggal seperti Umur Piutang Zahir: satu **Tanggal** (bawaan hari ini) = semua piutang yang belum lunas s/d tanggal itu tanpa batas tanggal faktur;
+  centang *Filter tanggal faktur secara spesifik* = hanya faktur bertanggal dalam rentang, sisa dihitung per tanggal akhir.
+- Di bawah GRAND TOTAL ada pemisah *Faktur draft* dan *Piutang approved* — angka approved inilah yang sama dengan Umur Piutang Zahir (yang tidak memuat draft).
 - Pengelompokan: departemen → klasifikasi pelanggan → pelanggan. Laporan hasil centang: SUB JLH = sisa piutang.
