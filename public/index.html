@@ -261,27 +261,20 @@ table.gl.jr tr.jb td{font-weight:600;background:#e9eff6;border-top:1px solid #9f
 .more{text-align:center;color:var(--muted);font-size:12px;padding:14px}
 .empty{padding:28px;text-align:center;color:var(--muted)}
 /* penjualan per pelanggan (pilih faktur): bilah aksi, kolom centang, laporan bergaris seperti Excel */
-.psbar .pstabs{display:flex;gap:4px;flex-wrap:wrap}
-.psbar .pstabs button{background:#fff;color:var(--ink);border:1px solid #cfd9e3;padding:5px 11px;font-size:12.5px;border-radius:6px}
-.psbar .pstabs button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
-.pswarn{background:#fff4e5;border:1px solid #f3c98b;color:#7a4a00;border-radius:6px;padding:7px 10px;margin:0 0 10px;font-size:12.5px}
-table.gl.ps{max-width:860px;margin:0 auto}
-table.gl.ps.lpak,table.gl.ps.pmap{max-width:none}
+table.gl.ps{max-width:980px;margin:0 auto}
 table.gl.ps td{border-bottom:none}
-table.gl.ps tr.ps-h1 td{font-weight:700;color:var(--brand);padding-top:12px;font-size:13.5px}
-table.gl.ps tr.ps-h2 td{font-weight:600;color:var(--brand);padding-top:8px}
-table.gl.ps tr.ps-acc td{color:#5b6b7b;font-style:italic;font-size:12px}
-table.gl.ps tr.ps-sub td,table.gl.ps tr.ps-sub2 td{font-weight:600}
-table.gl.ps tr.ps-sub td.r,table.gl.ps tr.ps-sub2 td.r{border-top:1px solid #9fb0c0}
-table.gl.ps tr.ps-tot td,table.gl.ps tr.ps-gt td{font-weight:700;background:#eef5f9}
-table.gl.ps tr.ps-tot td.r,table.gl.ps tr.ps-gt td.r{border-top:1px solid #556;border-bottom:3px double #556}
-table.gl.ps tr.un td{color:#c62828}
-table.gl.ps tr.ps-blank td{height:10px}
-table.gl.pmap td{border-bottom:1px solid #eef2f6;vertical-align:middle}
-table.gl.pmap select{margin:0;padding:3px 6px;font-size:12px;max-width:290px}
-table.gl.pmap tr.g td{background:#fffbea}
-.psguess{display:inline-block;font-size:10.5px;background:#fff1c2;color:#7a5a00;border:1px solid #f0d27a;border-radius:4px;padding:0 5px;margin-left:4px;font-style:normal}
-@media print{ .psbar,.pswarn{display:none!important} }
+table.gl.ps td.kd{color:#7a8896}
+table.gl.ps tr.ps-h1 td{font-weight:700;color:#2e7dbe;padding-top:12px;font-size:13.5px}
+table.gl.ps tr.ps-h2 td{font-weight:700;color:#2e7dbe;padding-top:6px}
+table.gl.ps tr.ps-h3 td{font-weight:700;color:#1e9e57}
+table.gl.ps tr.ps-sub td{font-weight:700;color:#1e9e57}
+table.gl.ps tr.ps-sub td.r{border-top:1px solid #c9d4df}
+table.gl.ps tr.ps-sub0 td,table.gl.ps tr.ps-tot td,table.gl.ps tr.ps-b td{font-weight:700;color:#2e7dbe}
+table.gl.ps tr.ps-sub0 td.r,table.gl.ps tr.ps-tot td.r{border-top:1px solid #2e7dbe}
+table.gl.ps tr.ps-gt td{font-weight:700;color:#1e9e57;background:#eef7f1;font-size:13.5px}
+table.gl.ps tr.ps-gt td.r{border-top:1px solid #1e9e57;border-bottom:3px double #1e9e57}
+table.gl.ps tr.ps-note td{font-style:italic;color:#7a8896;font-size:12px}
+table.gl.ps tr.ps-blank td{height:8px}
 .pkbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#f6f9fc;border:1px solid #dfe6ee;border-radius:8px;padding:8px 10px;margin:0 0 12px}
 .pkbar .info{margin-left:auto;font-size:12.5px;color:var(--ink)}
 .pkbar .info b{color:var(--brand)}
@@ -625,14 +618,17 @@ const CATALOG = [
     { id:'jual_pilih', title:'Penjualan per Pelanggan (pilih faktur)', mode:'pick', cq:'penjualan_pilih_faktur',
       filters:['date',{preset:'contact',label:'Pelanggan'},'cclass','dept','proj','sales','sclass'] },
   ]},
-  { category:'PSAK 109 (Amil Zakat)', items:[
-    // laporan keuangan amil (PSAK 109 / PSAK 409): saldo & mutasi per akun (bb_saldo_awal) + transaksi kas (psak109_kas_lawan),
-    // disusun di browser memakai pemetaan akun → pos laporan. Keempat laporan berbagi data yang sama (bisa pindah tab tanpa ambil ulang).
-    { id:'psak_lpk', title:'Laporan Posisi Keuangan', mode:'psak', view:'lpk', cq:'bb_saldo_awal', filters:['date'] },
-    { id:'psak_lpd', title:'Laporan Perubahan Dana', mode:'psak', view:'lpd', cq:'bb_saldo_awal', filters:['date'] },
-    { id:'psak_lpak', title:'Laporan Perubahan Aset Kelolaan', mode:'psak', view:'lpak', cq:'bb_saldo_awal', filters:['date'] },
-    { id:'psak_lak', title:'Laporan Arus Kas', mode:'psak', view:'lak', cq:'bb_saldo_awal', filters:['date'] },
-    { id:'psak_map', title:'Pemetaan Akun PSAK 109', mode:'psakmap', cq:'bb_saldo_awal' },
+  { category:'PSAK 109', items:[
+    // laporan amil zakat dari custom query PSAK 109 (sama dengan template Jasper Zahir Online); susunan di public/psak109.js
+    { id:'psak_neraca', title:'Laporan Posisi Keuangan (Neraca)', mode:'psak', kind:'neraca', cq:'neraca_psak109',
+      filters:[{preset:'date',asof:true,label:'Per Tanggal'},{preset:'cost',label:'Dana (Cost Code)'},'dept','proj'] },
+    { id:'psak_aktivitas', title:'Laporan Aktivitas (Perubahan Dana)', mode:'psak', kind:'aktivitas', cq:'laporan_aktivitas_psak109',
+      filters:[{preset:'date',label:'Periode'},{preset:'cost',label:'Dana (Cost Code)'},'dept','proj'] },
+    { id:'psak_perubahan_dana', title:'Perubahan Dana per Dana (Cost Code)', mode:'psak', kind:'perubahan_dana', cq:'perubahan_dana_psak109',
+      filters:[{preset:'date',label:'Periode'},{preset:'cost',label:'Dana (Cost Code)'},'dept','proj'] },
+    { id:'psak_ak_langsung', title:'Laporan Arus Kas (Metode Langsung)', mode:'psak', kind:'ak_langsung', cq:'arus_kas_langsung', filters:[{preset:'date',label:'Periode'},'dept','proj'] },
+    { id:'psak_ak_tl', title:'Laporan Arus Kas (Metode Tidak Langsung)', mode:'psak', kind:'ak_tl', cq:'arus_kas_tidak_langsung', filters:[{preset:'date',label:'Periode'},'dept','proj'] },
+    { id:'psak_calk', title:'Catatan atas Laporan Keuangan', mode:'psak', kind:'calk', cq:'catatan_atas_laporan_keuangan', filters:[] },
   ]},
 ];
 
@@ -808,14 +804,11 @@ async function buildCatalog(){
   const visible=allReports().filter(it=>reportAllowed(it.id));
   if(!visible.length){ $('#cards').innerHTML=`<div class="empty">${st.accessErr?esc(st.accessErr)+' — ':''}Belum ada laporan yang diizinkan untuk database ini. Hubungi admin Zahir Insight.</div>`; return; }
   for(const it of visible){ const k=it.category||'Lainnya'; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(it); }
-  $('#cards').innerHTML=[...groups].map(([cat,items])=>`<div class="cat"><h3>${esc(cat)}<i>▲</i></h3>${items.map(it=>`<a href="#" class="it" data-id="${it.id}"><span class="st">★</span>${esc(it.title)}${st.online||st.access||it.mode==='pick'||it.mode==='psak'||it.mode==='psakmap'?'':`<span class="ed" data-edit="${it.id}" title="Ubah desain">✎</span>`}</a>`).join('')}</div>`).join('');
+  $('#cards').innerHTML=[...groups].map(([cat,items])=>`<div class="cat"><h3>${esc(cat)}<i>▲</i></h3>${items.map(it=>`<a href="#" class="it" data-id="${it.id}"><span class="st">★</span>${esc(it.title)}${st.online||st.access||it.mode==='pick'||it.mode==='psak'?'':`<span class="ed" data-edit="${it.id}" title="Ubah desain">✎</span>`}</a>`).join('')}</div>`).join('');
   $('#cards').querySelectorAll('a.it').forEach(a=>a.onclick=e=>{ e.preventDefault(); if(e.target.dataset.edit){ openDesigner(e.target.dataset.edit); return; } openReport(a.dataset.id); });
 }
 async function openReport(id){
   const r=allReports().find(x=>x.id===id); if(!r||!reportAllowed(id)) return;
-  if(r.mode==='psakmap'){ st.report=r; st.cq=r.cq; $('#rptCrumb').textContent=r.title; $('#rTitle').textContent=r.title.toUpperCase(); showPage('pgRpt'); st.shown=true; $('#btnXlsxDirect').classList.add('hide'); $('#btnRun').disabled=$('#btnFilter').disabled=true; psakMapOpen(); return; }
-  $('#btnRun').disabled=$('#btnFilter').disabled=false;
-  if(typeof PSM!=='undefined') PSM.rid=null;
   st.report=r; st.cq=r.cq; $('#rptCrumb').textContent=r.title; $('#rTitle').textContent=r.title.toUpperCase(); $('#fModalTitle').textContent=r.title;
   showPage('pgRpt'); st.shown=false; $('#status').textContent=''; $('#rCo').textContent=st.company?.name||''; $('#rPer').textContent=''; $('#rFil').innerHTML=''; $('#rBody').innerHTML=''; $('#more').classList.add('hide');
   $('#btnXlsx').disabled=$('#btnPrint').disabled=$('#btnExpand').disabled=true;
@@ -1231,7 +1224,10 @@ async function buildFilterPanel(r){
   const defs=filtersOf(r); FV={}; const g=$('#fGrid'); g.innerHTML='';
   for(let i=0;i<defs.length;i++){
     const f=defs[i], id='f'+i, wrap=document.createElement('div');
-    if(f.type==='date'){
+    if(f.type==='date'&&f.asof){   // satu tanggal (laporan per tanggal, mis. neraca): hanya date.$lte yang dikirim
+      wrap.innerHTML=`<label>${esc(f.label||'Per Tanggal')}</label><input type="date" id="${id}b">`; g.appendChild(wrap); $('#'+id+'b').value=today();
+      FV[f.key||'date']={type:'date',get:()=>({d1:$('#'+id+'b').value,d2:$('#'+id+'b').value,asof:true})};
+    } else if(f.type==='date'){
       wrap.className='c2'; wrap.innerHTML=`<label>${esc(f.label||'Tanggal')}</label><select id="${id}p" style="margin-bottom:8px"><option value="month">Bulan ini</option><option value="today">Hari ini</option><option value="lmonth">Bulan lalu</option><option value="q">Kuartal ini</option><option value="year">Tahun ini</option><option value="lyear">Tahun lalu</option><option value="custom">Kustom…</option></select><div class="rng"><input type="date" id="${id}a"><span class="arr">→</span><input type="date" id="${id}b"></div>`; g.appendChild(wrap);
       $('#'+id+'a').value=firstDayOfMonth(); $('#'+id+'b').value=today();
       const preset=v=>{ const n=new Date(); const y=n.getFullYear(), m=n.getMonth(); const D=(a,b)=>{ $('#'+id+'a').value=ymd(a); $('#'+id+'b').value=ymd(b); };
@@ -1374,7 +1370,7 @@ function reportRequest(){
 $('#btnRun').onclick=()=>runReport({force:true});   // ⟳ = ambil ulang dari server, abaikan cache
 function renderMode(mode,rows,d1,d2){
   if(mode==='journal') renderJournal(rows,d1,d2); else if(mode==='tb') renderTB(rows,d1,d2); else if(mode==='crosstab') renderCrosstab(rows,d1,d2);
-  else if(mode==='table') renderTable(rows,d1,d2); else if(mode==='pick') renderPick(rows,d1,d2); else if(mode==='psak') renderPsak(rows,d1,d2); else render(rows,d1,d2);
+  else if(mode==='table') renderTable(rows,d1,d2); else if(mode==='pick') renderPick(rows,d1,d2); else if(mode==='psak') renderPsak(rows,d1,d2).catch(err=>{ $('#status').textContent='Gagal menyusun laporan: '+err.message; }); else render(rows,d1,d2);
 }
 async function runReport({force=false}={}){
   const {F,mode,monthly,summarize,report}=reportRequest(); const useDate=!!F.date; const d1=F.date?.d1||'', d2=F.date?.d2||'';
@@ -1447,14 +1443,16 @@ async function runReport({force=false}={}){
       ov.sub('Menyusun jurnal…'); await sleep(20); rows=JB.build(st.ttypes);
       const fc=tbRowOpts(await tbAccounts()).code; for(const x of rows) if(x.kode_akun) x.kode_akun=fc(x.kode_akun);   // kode akun berformat seperti di Zahir
     }
+    if(mode==='psak'){
+      // satu permintaan per kombinasi filter; neraca hanya date.$lte (per tanggal), CALK tanpa filter tanggal
+      rows=[]; const jobs=F.combos.map(c=>({...F.base,...c,...(!useDate?{}:F.date.asof?{'date.$lte':d2}:{'date.$gte':d1,'date.$lte':d2})})); T.total=jobs.length;
+      try{ for(const p of jobs){ await fetchChunk(p,n=>T.rows(n),r.cq,null,x=>rows.push(x)); T.done(); } }
+      catch(err){ if(/not found|tidak ditemukan|404|custom query/i.test(err.message)) throw new Error(err.message+' — custom query '+r.cq+' belum terpasang di database ini. Kembali ke daftar laporan lalu klik "Periksa custom query bawaan".'); throw err; }
+    }
     if(mode==='pick'){
       rows=[];
       try{ await runFlat(r.cq,x=>rows.push(x)); }
       catch(err){ if(/not found|tidak ditemukan|404|custom query/i.test(err.message)) throw new Error(err.message+' — custom query '+r.cq+' belum terpasang di database ini. Kembali ke daftar laporan lalu klik "Periksa custom query bawaan".'); throw err; }
-    }
-    if(mode==='psak'){
-      if(!useDate) throw new Error('Laporan PSAK 109 memerlukan filter tanggal');
-      rows=await psakFetch(F,d1,d2,T,ov);
     }
     if(!rows && mode==='ledger'){
       if(!useDate) throw new Error('Laporan buku besar memerlukan filter tanggal');
@@ -1861,186 +1859,52 @@ function pkShowReport(){
   window.scrollTo(0,0);
 }
 
-/* ---------- PSAK 109: laporan keuangan amil (posisi keuangan, perubahan dana, perubahan aset kelolaan, arus kas) + pemetaan akun ---------- */
-const PSAK_VIEWS=[{v:'lpk',id:'psak_lpk',t:'Laporan Posisi Keuangan',tab:'Posisi Keuangan'},{v:'lpd',id:'psak_lpd',t:'Laporan Perubahan Dana',tab:'Perubahan Dana'},
-  {v:'lpak',id:'psak_lpak',t:'Laporan Perubahan Aset Kelolaan',tab:'Perubahan Aset Kelolaan'},{v:'lak',id:'psak_lak',t:'Laporan Arus Kas',tab:'Arus Kas'}];
-const PSM={map:null,key:'',src:'',detail:false,view:'lpk',data:null,res:null,draft:null,q:'',only:'',back:false};
-const psakLKey=()=>'psak109.'+(st.slug||st.company?.id||'default');
-async function psakMapLoad(force){
-  if(PSM.map&&!force&&PSM.key===psakLKey()) return PSM.map;
-  let m=null, src='local';
-  try{ const r=await fetch('/psak109/map',{headers:rptHeaders()}); if(r.ok){ m=await r.json(); src='server'; } else if(r.status===403){ const j=await r.json().catch(()=>({})); throw new Error(j.error||'Tidak diizinkan'); } }catch(e){ if(/izin/i.test(e.message)) throw e; }
-  if(!m) m=L.get(psakLKey())||{accounts:{}};
-  if(!m.accounts) m.accounts={};
-  PSM.map=m; PSM.src=src; PSM.key=psakLKey(); return m;
+/* ---------- PSAK 109: laporan dari custom query PSAK 109 (susunan grup & total di public/psak109.js) ---------- */
+const psakNum=v=>v==null||v===''?'':nfmt(2).format(+v);
+function psakPeriod(kind,d1,d2){ const per=Psak109.KINDS[kind].per; return per==='asof'?`Per Tanggal : ${fmtDate(d2)}`:per==='all'?'Disajikan secara kumulatif - seluruh periode':`Periode : ${fmtDate(d1)} s/d ${fmtDate(d2)}`; }
+async function renderPsak(rows,d1,d2){
+  const r=st.report, kind=r.kind, K=Psak109.KINDS[kind]; const R=Psak109.build(kind,rows);
+  let fk=x=>x; try{ fk=tbRowOpts(await tbAccounts()).code; }catch{}
+  for(const x of R.rows) if(x.kode) x.kodeF=fk(x.kode);
+  st.psak={kind,R,d1,d2};
+  $('#pgRpt').classList.remove('wide'); $('#rTitle').textContent=K.title; $('#rPer').textContent=psakPeriod(kind,d1,d2);
+  const cols=R.cols.map(c=>kind==='neraca'&&c.k==='v'?{...c,label:'Saldo'}:c); st.psak.cols=cols;
+  const nc=cols.filter(c=>c.num).length;
+  const val=(x,c)=>c.k==='v'?x.v:x.vals?x.vals[c.k]:undefined;
+  const cls=x=>`ps-${x.t}${x.b?' ps-b':''}`, pad=x=>`style="padding-left:${8+(x.lvl||0)*16}px"`;
+  const body=R.rows.map(x=>{
+    if(x.t==='blank') return `<tr class="ps-blank"><td colspan="${cols.length}"></td></tr>`;
+    if(/^h/.test(x.t)) return `<tr class="${cls(x)}"><td colspan="${cols.length}" ${pad(x)}>${esc(x.label)}</td></tr>`;
+    if(x.t==='item'&&x.kode) return `<tr class="${cls(x)}"><td class="nw kd" ${pad(x)}>${esc(x.kodeF)}</td><td>${esc(x.label)}</td>${cols.filter(c=>c.num).map(c=>`<td class="r nw">${psakNum(val(x,c))}</td>`).join('')}</tr>`;
+    return `<tr class="${cls(x)}"><td colspan="2" ${pad(x)}>${esc(x.label)}</td>${cols.filter(c=>c.num).map(c=>`<td class="r nw">${psakNum(val(x,c))}</td>`).join('')}</tr>`;
+  }).join('');
+  $('#rBody').innerHTML=rows.length?`<table class="gl ps"><colgroup><col style="width:150px"><col>${'<col style="width:170px">'.repeat(nc)}</colgroup><thead><tr>${cols.map(c=>`<th${c.num?' class="r"':''}>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`:'<div class="empty">Tidak ada data untuk filter ini.</div>';
+  $('#btnExpand').disabled=true; $('#btnPrint').onclick=()=>window.print(); $('#btnXlsx').onclick=()=>psakXlsx();
 }
-async function psakMapSave(m){
-  const doc={v:1,accounts:m.accounts||{},updated:new Date().toISOString()};
-  if(PSM.src==='server'){ const r=await fetch('/psak109/map',{method:'PUT',headers:rptHeaders({'Content-Type':'application/json'}),body:JSON.stringify(doc)}); const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||'HTTP '+r.status); PSM.map=j; }
-  else { L.set(psakLKey(),doc); PSM.map=doc; }
-  PSM.key=psakLKey();
-}
-// saldo per akun sebelum periode (2 potongan, sama dengan buku besar) + mutasi periode — semuanya dari custom query bb_saldo_awal
-async function psakFetch(F,d1,d2,T,ov){
-  const base={...F.base}; const SA=LedgerBuilder.saChunks(d1,base).map(x=>x.p); const MU=[{...base,'date.$gte':d1,'date.$lte':d2}];
-  T.total=SA.length+MU.length; const rows=[];
-  try{
-    for(const p of SA){ await fetchChunk(p,n=>T.rows(n),'bb_saldo_awal',null,x=>{ x.__s='sa'; rows.push(x); }); T.done(); }
-    for(const p of MU){ await fetchChunk(p,n=>T.rows(n),'bb_saldo_awal',null,x=>{ x.__s='mu'; rows.push(x); }); T.done(); }
-  }catch(err){ if(/not found|tidak ditemukan|404|custom query/i.test(err.message)) throw new Error(err.message+' — custom query bb_saldo_awal belum terpasang di database ini. Kembali ke daftar laporan lalu klik "Periksa custom query bawaan".'); throw err; }
-  ov.sub('Memuat pemetaan akun…'); await psakMapLoad();
-  return rows;
-}
-const psakFmt=(v,dec=0)=>{ if(v==null||v==='') return ''; const n=+v; if(!isFinite(n)) return esc(v); if(Math.abs(n)<(dec?0.005:0.5)) return '-'; const s=nfmt(dec).format(Math.abs(n)); return n<0?`(${s})`:s; };
-async function psakAccs(){
-  const o=await tbAccounts(); const f=tbRowOpts(o).code;
-  let api=[]; try{ api=await optionsFor(PRESET_FILTERS.account); }catch{}
-  return { fmt:f, accs:api.map(a=>({kode:a.code,nama:a.name,kls:'',account_id:a.id})) };
-}
-// baris jurnal transaksi kas: diambil per akun kas (filter account_id), sekali per akun per periode, disimpan bersama data laporan
-async function psakEnsureKas(D){
-  const need=[]; const byKey=new Map();
-  for(const r of D.rows) if(r.account_id) byKey.set(Psak109.norm(r.kode_akun),r.account_id);
-  for(const a of PSM.res?.accounts||[]) if(Psak109.POS_BY[a.pos]?.cash){ const id=byKey.get(a.key); if(id&&!D.kas.has(id)) need.push(id); }
-  if(!need.length) return false;
-  ov.show('Mengambil transaksi kas',`${need.length} akun kas/bank`);
-  try{
-    let i=0; for(const id of need){ ov.set(5+90*i/need.length,''); const out=[];
-      await fetchChunk({'date.$gte':D.d1,'date.$lte':D.d2,account_id:id},()=>{},'psak109_kas_lawan',null,x=>out.push(x)); D.kas.set(id,out); i++; }
-    D.kasErr='';
-  }catch(err){ D.kasErr=/not found|tidak ditemukan|404|custom query/i.test(err.message)?'Custom query psak109_kas_lawan belum terpasang di database ini — klik "Periksa custom query bawaan" di daftar laporan, lalu ⟳.':'Transaksi kas gagal diambil: '+err.message; }
-  finally{ ov.hide(); }
-  return true;
-}
-function renderPsak(rows,d1,d2){
-  if(!rows.__psak) rows.__psak={rows,d1,d2,kas:new Map(),kasErr:''};   // kas ikut tersimpan di cache hasil
-  PSM.data=rows.__psak; PSM.data.d1=d1; PSM.data.d2=d2; if(PSM.rid!==st.report.id){ PSM.rid=st.report.id; PSM.view=st.report.view||'lpk'; }   // ⟳ tetap di tab yang sedang dibuka
-  psakDraw(true).catch(err=>{ $('#status').textContent='Gagal menyusun laporan: '+err.message; console.error(err); });
-}
-async function psakBuild(){
-  const D=PSM.data; const A=await psakAccs(); PSM.fmt=A.fmt;
-  const sa=D.rows.filter(r=>r.__s==='sa'), mu=D.rows.filter(r=>r.__s==='mu');
-  const kasRows=()=>[...D.kas.values()].flat();
-  const go=()=>Psak109.build({accs:A.accs,sa,mu,kas:reportAllowed('psak_lak')&&!D.kasErr?kasRows():null,map:PSM.map,opt:{detail:PSM.detail,fmtKode:A.fmt}});
-  PSM.res=go();
-  if(reportAllowed('psak_lak')&&await psakEnsureKas(D)) PSM.res=go();
-  return PSM.res;
-}
-async function psakDraw(rebuild){
-  if(rebuild||!PSM.res) await psakBuild();
-  const D=PSM.data, Rz=PSM.res; const views=PSAK_VIEWS.filter(x=>reportAllowed(x.id)); if(!views.some(x=>x.v===PSM.view)) PSM.view=views[0]?.v||'lpk';
-  const V=PSAK_VIEWS.find(x=>x.v===PSM.view);
-  $('#pgRpt').classList.remove('wide'); $('#rpt').classList.remove('hide'); $('#more').classList.add('hide');
-  $('#rTitle').textContent=V.t.toUpperCase(); $('#rptCrumb').textContent=V.t;
-  $('#rPer').textContent=PSM.view==='lpk'?`Per ${fmtDate(D.d2)}`:`Untuk periode ${fmtDate(D.d1)} s/d ${fmtDate(D.d2)}`;
-  const warn=[...Rz.warn]; if(PSM.view==='lak'&&D.kasErr) warn.unshift(D.kasErr);
-  const un=Rz.unmapped.length, gs=Rz.guessed;
-  const note=[un?`<b>${un}</b> akun belum dipetakan`:'',gs?`<b>${gs}</b> akun memakai tebakan otomatis`:''].filter(Boolean).join(' · ');
-  $('#rBody').innerHTML=`<div class="pkbar psbar">
-      <div class="pstabs">${views.map(x=>`<button class="${x.v===PSM.view?'on':''}" data-v="${x.v}">${esc(x.tab)}</button>`).join('')}</div>
-      <label class="pk"><input type="checkbox" id="psDet"${PSM.detail?' checked':''}> Rincian per akun</label>
-      <span class="info">${note||'Semua akun sudah dipetakan'}</span>
-      <button class="ghost sm" id="psMap">Pemetaan akun…</button>
-      <button class="ghost sm" id="psAll" title="Satu file Excel, satu sheet per laporan">Excel semua laporan</button>
-    </div>${warn.map(w=>`<div class="pswarn">${esc(w)}</div>`).join('')}<div id="psTbl"></div>`;
-  $('#rBody').querySelectorAll('.pstabs button').forEach(b=>b.onclick=()=>{ PSM.view=b.dataset.v; psakDraw(false); });
-  $('#psDet').onchange=()=>{ PSM.detail=$('#psDet').checked; psakDraw(true); };
-  $('#psMap').onclick=()=>{ PSM.back=true; psakMapOpen(); };
-  $('#psAll').onclick=()=>psakXlsx(views.map(x=>x.v));
-  $('#psTbl').innerHTML=psakTable(PSM.view,Rz);
-  $('#btnXlsx').disabled=$('#btnPrint').disabled=false; $('#btnExpand').disabled=true;
-  $('#btnXlsx').onclick=()=>psakXlsx([PSM.view]);
-  $('#btnPrint').onclick=()=>window.print();
-}
-function psakRowsOf(v,Rz){ return v==='lak'?(Rz.lak||[]):Rz[v]||[]; }
-function psakTable(v,Rz){
-  const rows=psakRowsOf(v,Rz);
-  if(v==='lak'&&!Rz.lak) return '<div class="empty">Arus kas belum bisa disusun.</div>';
-  if(!rows.length) return `<div class="empty">${v==='lpak'?'Belum ada akun yang dipetakan ke aset kelolaan (pos "Aset kelolaan lancar/tidak lancar").':'Tidak ada data.'}</div>`;
-  const cls=r=>`ps-${r.t}${r.un?' un':''}`; const pad=r=>`style="padding-left:${8+(r.lvl||0)*18}px"`;
-  if(v==='lpak'){ const C=Psak109.LPAK_COLS, Lb=Psak109.LPAK_LABELS;
-    return `<table class="gl ps lpak"><colgroup><col style="width:28%">${C.map(()=>'<col style="width:12%">').join('')}</colgroup><thead><tr><th>Uraian</th>${C.map(c=>`<th class="r">${esc(Lb[c])}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>r.t==='h2'||r.t==='h1'?`<tr class="${cls(r)}"><td colspan="${C.length+1}" ${pad(r)}>${esc(r.label)}</td></tr>`:`<tr class="${cls(r)}"><td ${pad(r)}>${esc(r.label)}</td>${C.map(c=>`<td class="r">${psakFmt(r[c])}</td>`).join('')}</tr>`).join('')}</tbody></table>`; }
-  return `<table class="gl ps"><colgroup><col><col style="width:200px"></colgroup><thead><tr><th>Uraian</th><th class="r">Jumlah</th></tr></thead><tbody>${rows.map(r=>{
-    if(r.t==='blank') return '<tr class="ps-blank"><td colspan="2"></td></tr>';
-    if(r.t==='h1'||r.t==='h2') return `<tr class="${cls(r)}"><td colspan="2" ${pad(r)}>${esc(r.label)}</td></tr>`;
-    return `<tr class="${cls(r)}"><td ${pad(r)}>${esc(r.label)}</td><td class="r">${psakFmt(r.v)}</td></tr>`; }).join('')}</tbody></table>`;
-}
-// Excel: satu sheet per laporan; angka asli (bisa dijumlah), negatif dalam kurung, indentasi mengikuti tingkat
-async function psakXlsx(vs){
-  ov.show('Mengekspor ke Excel',''); try{
-    const ExcelJS=await loadExcelJS(); const wb=new ExcelJS.Workbook(); const D=PSM.data, Rz=PSM.res;
-    const NF='#,##0;(#,##0);"-"', BLUE='FF0E7FB8';
-    for(const v of vs){ const V=PSAK_VIEWS.find(x=>x.v===v); const rows=psakRowsOf(v,Rz); const lp=v==='lpak'; const C=lp?Psak109.LPAK_COLS:['v'];
-      const ws=wb.addWorksheet(V.tab.slice(0,31)); ws.columns=[{width:62},...C.map(()=>({width:lp?18:22}))];
-      const add=(vals,font)=>{ const r=ws.addRow(vals); if(font) r.getCell(1).font=font; return r; };
-      add([st.company?.name||''],{bold:true,size:14}); add([V.t.toUpperCase()],{bold:true,size:12,color:{argb:BLUE}});
-      add([v==='lpk'?`Per ${fmtDate(D.d2)}`:`Untuk periode ${fmtDate(D.d1)} s/d ${fmtDate(D.d2)}`],{color:{argb:'FFC62828'}}); add(['(dalam Rupiah)'],{italic:true,color:{argb:'FF667788'}}); ws.addRow([]);
-      const h=ws.addRow(['Uraian',...C.map(c=>lp?Psak109.LPAK_LABELS[c]:'Jumlah')]); h.eachCell((c,i)=>{ c.font={bold:true,color:{argb:'FFFFFFFF'}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:BLUE}}; c.alignment={horizontal:i===1?'left':'right',vertical:'middle',wrapText:true}; });
-      for(const r of rows){
-        if(r.t==='blank'){ ws.addRow([]); continue; }
-        const row=ws.addRow([r.label,...(r.t==='h1'||r.t==='h2'?[]:C.map(c=>{ const x=lp?r[c]:r.v; return x==null?null:Math.round(x*100)/100; }))]);
-        row.getCell(1).alignment={indent:Math.min(15,(r.lvl||0)*2)};
-        const bold=r.t!=='item'&&r.t!=='acc';
-        for(let i=1;i<=C.length+1;i++){ const c=row.getCell(i); if(i>1) c.numFmt=NF; c.font={bold, italic:r.t==='acc', color:r.t==='h1'||r.t==='h2'?{argb:BLUE}:r.un?{argb:'FFC62828'}:undefined};
-          if(i>1&&(r.t==='sub'||r.t==='sub2')) c.border={top:{style:'thin'}};
-          if(i>1&&(r.t==='tot'||r.t==='gt')) c.border={top:{style:'thin'},bottom:{style:'double'}}; }
-      }
-      ws.views=[{state:'frozen',ySplit:6}];
+// Excel: angka asli (bisa dijumlah), judul grup & total tebal, indentasi mengikuti tingkat
+async function psakXlsx(){
+  const P=st.psak; if(!P) return; ov.show('Mengekspor ke Excel',''); try{
+    const ExcelJS=await loadExcelJS(); const wb=new ExcelJS.Workbook(); const K=Psak109.KINDS[P.kind]; const cols=P.cols, nums=cols.filter(c=>c.num);
+    const ws=wb.addWorksheet('Laporan'); ws.columns=[{width:18},{width:52},...nums.map(()=>({width:20}))];
+    const NF='#,##0.00;-#,##0.00', BLUE='FF2E7DBE', GREEN='FF1E9E57', N=cols.length;
+    const title=(t,font)=>{ const r=ws.addRow([t]); ws.mergeCells(r.number,1,r.number,N); r.getCell(1).font=font; r.getCell(1).alignment={horizontal:'center'}; };
+    title(st.company?.name||'',{bold:true,size:14}); title(K.title,{bold:true,size:12,color:{argb:BLUE}}); title(psakPeriod(P.kind,P.d1,P.d2),{size:10}); ws.addRow([]);
+    const h=ws.addRow(cols.map(c=>c.label)); h.eachCell((c,i)=>{ c.font={bold:true,color:{argb:'FFFFFFFF'}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:BLUE}}; c.alignment={horizontal:cols[i-1].num?'right':'left'}; });
+    for(const x of P.R.rows){
+      if(x.t==='blank'){ ws.addRow([]); continue; }
+      const head=/^h/.test(x.t), acct=x.t==='item'&&x.kode;
+      const vals=nums.map(c=>{ const v=c.k==='v'?x.v:x.vals?x.vals[c.k]:undefined; return v==null?null:Math.round(v*100)/100; });
+      const row=ws.addRow(acct?[x.kodeF,x.label,...vals]:[x.label,null,...(head?[]:vals)]);
+      if(!acct) ws.mergeCells(row.number,1,row.number,2);
+      row.getCell(1).alignment={indent:Math.min(15,(x.lvl||0)*2)};
+      const bold=!(x.t==='item'&&!x.b), color=head||x.t==='sub0'||x.t==='tot'?{argb:BLUE}:x.t==='sub'||x.t==='gt'?{argb:GREEN}:undefined;
+      for(let i=1;i<=N;i++){ const c=row.getCell(i); if(i>2) c.numFmt=NF; c.font={bold,italic:x.t==='note',color};
+        if(i>2&&/^sub|tot|gt/.test(x.t)) c.border={top:{style:'thin'},...(x.t==='gt'?{bottom:{style:'double'}}:{})}; }
     }
+    ws.views=[{state:'frozen',ySplit:5}];
     const buf=await wb.xlsx.writeBuffer(); const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
-    const a=document.createElement('a'); a.href=url; a.download=`PSAK109_${vs.length>1?'Laporan_Keuangan':PSAK_VIEWS.find(x=>x.v===vs[0]).t.replace(/[^\w]+/g,'_')}_${D.d1}_${D.d2}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
+    const a=document.createElement('a'); a.href=url; a.download=`${st.report.title.replace(/[^\w]+/g,'_')}_${P.kind==='calk'?'kumulatif':(Psak109.KINDS[P.kind].per==='asof'?P.d2:P.d1+'_'+P.d2)}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
   }catch(err){ alert('Ekspor gagal: '+err.message); } finally{ ov.hide(); }
-}
-
-/* --- halaman pemetaan akun: tiap akun → pos laporan, pos arus kas (opsional), akun aset kelolaan terkait (untuk akumulasi/penyisihan) --- */
-async function psakMapOpen(){
-  $('#pgRpt').classList.add('wide'); $('#rpt').classList.remove('hide'); $('#more').classList.add('hide');
-  $('#rTitle').textContent='PEMETAAN AKUN PSAK 109'; $('#rPer').textContent=''; $('#rFil').innerHTML=''; $('#status').textContent='';
-  $('#btnXlsx').disabled=$('#btnPrint').disabled=$('#btnExpand').disabled=true;
-  ov.show('Memuat daftar akun','');
-  try{
-    await psakMapLoad(true);
-    const A=await psakAccs(); PSM.fmt=A.fmt;
-    let bal=[]; try{ bal=[]; await fetchChunk({'date.$lte':today()},()=>{},'bb_saldo_awal',null,x=>bal.push(x)); }catch(err){ toast('Saldo akun tidak terbaca ('+err.message+') — daftar akun tetap bisa dipetakan.','err'); }
-    PSM.mapAcc=Psak109.build({accs:A.accs,sa:bal,mu:[],kas:null,map:{accounts:{}},opt:{}}).accounts;   // daftar akun + saldo + klasifikasi (tanpa pemetaan)
-    PSM.draft=JSON.parse(JSON.stringify(PSM.map.accounts||{}));
-  }catch(err){ ov.hide(); $('#rBody').innerHTML=`<div class="empty">${esc(err.message)}</div>`; return; }
-  ov.hide(); psakMapDraw();
-}
-const psakOpts=(sel)=>`<option value="">— belum dipetakan —</option>`+Psak109.POS_GROUPS.map(g=>`<optgroup label="${esc(g.label)}">${g.ids.map(id=>`<option value="${id}"${id===sel?' selected':''}>${esc(Psak109.POS_BY[id].label)}</option>`).join('')}</optgroup>`).join('');
-function psakMapDraw(){
-  const accs=PSM.mapAcc||[]; const dr=PSM.draft; const q=PSM.q.trim().toLowerCase();
-  const eff=a=>{ const m=dr[a.key]; return m&&'pos' in m?{pos:m.pos||'',cf:m.cf||'',link:m.link||'',guessed:false}:{pos:Psak109.guess(a),cf:'',link:'',guessed:true}; };
-  const kelAssets=accs.filter(a=>Psak109.POS_BY[eff(a).pos]?.col==='nilai');
-  const shown=accs.filter(a=>{ const e=eff(a); if(q&&!(a.kode+' '+a.nama).toLowerCase().includes(q)) return false; if(PSM.only==='guess') return e.guessed; if(PSM.only==='none') return !e.pos; return true; });
-  const nGuess=accs.filter(a=>eff(a).guessed).length, nNone=accs.filter(a=>!eff(a).pos).length;
-  const KLS={1:'Aset',2:'Liabilitas',3:'Saldo dana/modal',4:'Pendapatan',5:'Beban',6:'Beban',7:'Pendapatan lain',8:'Beban lain'};
-  $('#rBody').innerHTML=`<div class="pkbar psbar">
-      ${PSM.back&&PSM.data?'<button class="ghost sm" id="pmBack">← Kembali ke laporan</button>':''}
-      <input type="search" id="pmQ" placeholder="Cari kode / nama akun…" value="${esc(PSM.q)}">
-      <select id="pmOnly" style="width:auto;margin:0"><option value="">Semua akun (${accs.length})</option><option value="guess"${PSM.only==='guess'?' selected':''}>Masih tebakan (${nGuess})</option><option value="none"${PSM.only==='none'?' selected':''}>Belum dipetakan (${nNone})</option></select>
-      <button class="ghost sm" id="pmAccept" title="Simpan semua tebakan sebagai pemetaan tetap">Terima semua tebakan</button>
-      <span class="info">Disimpan ${PSM.src==='server'?'di server Zahir Insight (berlaku untuk semua pengguna database ini)':'di browser ini — gunakan Ekspor/Impor untuk memindahkan ke komputer lain'}</span>
-      <button class="ghost sm" id="pmExp">Ekspor</button><button class="ghost sm" id="pmImp">Impor</button><input type="file" id="pmFile" accept=".json,application/json" class="hide">
-      <button class="sm" id="pmSave">Simpan pemetaan</button>
-    </div>
-    <div class="prev" style="margin:-4px 0 10px">Akun berlabel <span class="psguess">tebakan</span> belum disimpan dan dipetakan otomatis dari namanya. Akun pendapatan/beban ikut menambah/mengurangi saldo dana tempat pos-nya berada. Kolom <i>Arus kas</i> hanya perlu diisi bila pos arus kas otomatis kurang tepat.</div>
-    <table class="gl ps pmap"><thead><tr><th>Kode</th><th>Nama akun</th><th>Klasifikasi</th><th class="r">Saldo s/d hari ini</th><th>Pos laporan</th><th>Arus kas</th><th>Aset kelolaan terkait</th></tr></thead><tbody>${shown.map(a=>{ const e=eff(a); const p=Psak109.POS_BY[e.pos]; const auto=Psak109.CF_BY[Psak109.cfDefault(e.pos)]?.label||'';
-      return `<tr data-k="${esc(a.key)}" class="${e.guessed?'g':''}"><td class="nw">${esc(PSM.fmt?PSM.fmt(a.kode):a.kode)}</td><td>${esc(a.nama)}${e.guessed?' <span class="psguess">tebakan</span>':''}</td><td class="nw">${esc(KLS[a.klsN]||'')}</td><td class="r nw">${psakFmt(a.end)}</td>
-        <td><select data-f="pos">${psakOpts(e.pos)}</select></td>
-        <td>${p&&p.cash?'<span class="prev">akun kas</span>':`<select data-f="cf"><option value="">otomatis: ${esc(auto)}</option>${['o','i','f'].map(g=>`<optgroup label="${esc(Psak109.ACT[g])}">${Psak109.CF.filter(c=>c.act===g).map(c=>`<option value="${c.id}"${c.id===e.cf?' selected':''}>${esc(c.label)}</option>`).join('')}</optgroup>`).join('')}</select>`}</td>
-        <td>${p&&p.kel&&p.col!=='nilai'?`<select data-f="link"><option value="">otomatis</option>${kelAssets.map(x=>`<option value="${esc(x.key)}"${x.key===e.link?' selected':''}>${esc(x.nama)}</option>`).join('')}</select>`:''}</td></tr>`; }).join('')||'<tr><td colspan="7" class="empty">Tidak ada akun yang cocok.</td></tr>'}</tbody></table>`;
-  let t; $('#pmQ').oninput=()=>{ clearTimeout(t); t=setTimeout(()=>{ PSM.q=$('#pmQ').value; psakMapDraw(); $('#pmQ').focus(); const v=$('#pmQ').value; $('#pmQ').setSelectionRange(v.length,v.length); },250); };
-  $('#pmOnly').onchange=()=>{ PSM.only=$('#pmOnly').value; psakMapDraw(); };
-  $('#rBody').querySelector('table.pmap').addEventListener('change',e=>{ const sel=e.target.closest('select[data-f]'); if(!sel) return; const k=sel.closest('tr').dataset.k; const a=accs.find(x=>x.key===k);
-    const cur=dr[k]&&'pos' in dr[k]?dr[k]:{pos:Psak109.guess(a),cf:'',link:''}; dr[k]={...cur,[sel.dataset.f]:sel.value}; if(sel.dataset.f==='pos'){ dr[k].cf=''; dr[k].link=''; } psakMapDraw(); });
-  $('#pmAccept').onclick=()=>{ for(const a of accs) if(!(dr[a.key]&&'pos' in dr[a.key])) dr[a.key]={pos:Psak109.guess(a),cf:'',link:''}; psakMapDraw(); toast('Tebakan diterima — klik "Simpan pemetaan" untuk menyimpan'); };
-  $('#pmSave').onclick=async()=>{ try{ await psakMapSave({accounts:dr}); PSM.draft=JSON.parse(JSON.stringify(PSM.map.accounts)); toast('Pemetaan disimpan'); psakMapDraw(); }catch(err){ alert('Gagal menyimpan: '+err.message); } };
-  $('#pmExp').onclick=()=>{ const named={}; for(const [k,v] of Object.entries(dr)){ const a=accs.find(x=>x.key===k); named[k]={...v,nama:a?.nama||''}; }
-    const url=URL.createObjectURL(new Blob([JSON.stringify({v:1,company:st.company?.name||'',accounts:named},null,1)],{type:'application/json'})); const a=document.createElement('a'); a.href=url; a.download=`pemetaan_psak109_${(st.company?.name||'db').replace(/[^\w]+/g,'_')}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),10000); };
-  $('#pmImp').onclick=()=>$('#pmFile').click();
-  $('#pmFile').onchange=async()=>{ const f=$('#pmFile').files[0]; if(!f) return; try{ const j=JSON.parse(await f.text()); if(!j.accounts) throw new Error('berkas bukan pemetaan PSAK 109'); let n=0; for(const [k,v] of Object.entries(j.accounts)) if(v&&(v.pos===''||Psak109.POS_BY[v.pos])){ PSM.draft[Psak109.norm(k)]={pos:v.pos||'',cf:v.cf||'',link:v.link||''}; n++; } psakMapDraw(); toast(`${n} akun diimpor — klik "Simpan pemetaan" untuk menyimpan`); }catch(err){ alert('Impor gagal: '+err.message); } };
-  if($('#pmBack')) $('#pmBack').onclick=()=>{ const dirty=JSON.stringify(PSM.draft)!==JSON.stringify(PSM.map.accounts||{}); if(dirty&&!confirm('Perubahan pemetaan belum disimpan. Kembali tanpa menyimpan?')) return; PSM.back=false; psakDraw(true); window.scrollTo(0,0); };
 }
 
 /* ---------- render buku besar ---------- */

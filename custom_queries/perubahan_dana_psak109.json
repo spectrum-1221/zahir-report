@@ -1,0 +1,20 @@
+{
+  "reason": "Zahir Insight - PSAK 109: perubahan_dana_psak109",
+  "name": "perubahan_dana_psak109",
+  "field": {
+    "account_id": "K1.ID",
+    "akun_kode": "akun_kode",
+    "akun_nama": "akun_nama",
+    "cost_code_id": "CC1.ID",
+    "dana_nama": "dana_nama",
+    "dana_urut": "dana_urut",
+    "date": "G1.D",
+    "department_id": "D1.ID",
+    "mutasi_bersih": "mutasi_bersih",
+    "penerimaan": "penerimaan",
+    "penyaluran": "penyaluran",
+    "project_id": "J1.PROJECT_ID"
+  },
+  "query": "WITH\nf AS (\n  SELECT DISTINCT G1.JVC_ID\n  FROM (\n    SELECT jv.id             AS jvc_id,\n           g.tanggal::date   AS d,\n           jv.cost_code_id   AS cost_code_id,\n           g.department_id   AS department_id,\n           g.project_id      AS project_id,\n           jv.account_id     AS account_id\n    FROM g_jurnal g\n    JOIN jurnalvc jv ON jv.transaction_id = g.id\n    WHERE g.status = 'approved'\n  ) G1\n  JOIN cost_codes CC1 ON CC1.id = G1.cost_code_id\n  LEFT JOIN dept   D1 ON D1.id  = G1.department_id\n  LEFT JOIN job    J1 ON J1.project_id = G1.project_id\n  JOIN kiraan      K1 ON K1.id  = G1.account_id\n  WHERE 1=1 {andWhere}\n),\nhasil AS (\n  SELECT\n    DENSE_RANK() OVER (ORDER BY cc.code)       AS dana_urut,\n    cc.name                                    AS dana_nama,   -- nama dana = nama cost code\n    k.code       AS akun_kode,\n    k.nama  AS akun_nama,\n    SUM(jv.kredit)::numeric(18,2)              AS penerimaan,\n    SUM(jv.debit)::numeric(18,2)               AS penyaluran,\n    SUM(jv.kredit - jv.debit)::numeric(18,2)   AS mutasi_bersih\n  FROM f\n  JOIN jurnalvc  jv ON jv.id = f.jvc_id\n  JOIN cost_codes cc ON cc.id = jv.cost_code_id\n  JOIN kiraan     k  ON k.id  = jv.account_id\n  GROUP BY cc.code, cc.name, k.code, k.nama\n)\nSELECT * FROM hasil\nORDER BY dana_urut, akun_kode {andOrder} {limit}",
+  "query_count": "WITH\nf AS (\n  SELECT DISTINCT G1.JVC_ID\n  FROM (\n    SELECT jv.id AS jvc_id, g.tanggal::date AS d, jv.cost_code_id AS cost_code_id,\n           g.department_id AS department_id, g.project_id AS project_id, jv.account_id AS account_id\n    FROM g_jurnal g\n    JOIN jurnalvc jv ON jv.transaction_id = g.id\n    WHERE g.status = 'approved'\n  ) G1\n  JOIN cost_codes CC1 ON CC1.id = G1.cost_code_id\n  LEFT JOIN dept   D1 ON D1.id  = G1.department_id\n  LEFT JOIN job    J1 ON J1.project_id = G1.project_id\n  JOIN kiraan      K1 ON K1.id  = G1.account_id\n  WHERE 1=1 {andWhere}\n)\nSELECT COUNT(*) FROM f"
+}

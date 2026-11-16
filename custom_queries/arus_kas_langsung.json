@@ -1,0 +1,19 @@
+{
+  "reason": "Zahir Insight - PSAK 109: arus_kas_langsung",
+  "name": "arus_kas_langsung",
+  "field": {
+    "account_id": "G1.account_id",
+    "akun_kode": "akun_kode",
+    "akun_nama": "akun_nama",
+    "cost_code_id": "G1.cost_code_id",
+    "date": "G1.d",
+    "department_id": "G1.department_id",
+    "kas_akhir": "kas_akhir",
+    "nilai": "nilai",
+    "project_id": "G1.project_id",
+    "section": "section",
+    "section_urut": "section_urut"
+  },
+  "query": "WITH\nmv AS (\n  SELECT\n    CASE sk.cash_flow_type WHEN 'investing' THEN 2 WHEN 'financing' THEN 3 ELSE 1 END AS section_urut,\n    CASE sk.cash_flow_type\n         WHEN 'investing' THEN 'ARUS KAS DARI (UNTUK) AKTIVITAS INVESTASI'\n         WHEN 'financing' THEN 'ARUS KAS DARI (UNTUK) AKTIVITAS PENDANAAN'\n         ELSE 'ARUS KAS DARI AKTIVITAS OPERASI' END AS section,\n    k.code AS akun_kode, k.nama AS akun_nama,\n    SUM(G1.kredit - G1.debit)::numeric(18,2) AS nilai\n  FROM (\n    SELECT g.id AS gid, g.tanggal::date AS d, g.department_id AS department_id,\n           g.project_id AS project_id, jv.account_id AS account_id,\n           jv.cost_code_id AS cost_code_id, jv.debit AS debit, jv.kredit AS kredit\n    FROM g_jurnal g JOIN jurnalvc jv ON jv.transaction_id = g.id\n    WHERE g.status = 'approved'\n  ) G1\n  JOIN kiraan  k  ON k.id  = G1.account_id\n  JOIN subklas sk ON sk.id = k.subclassification_id\n  WHERE COALESCE(k.is_cash,'0') <> '1' {andWhere}\n  GROUP BY 1, 2, k.code, k.nama\n  HAVING SUM(G1.kredit - G1.debit) <> 0\n),\nkasakhir AS (\n  SELECT SUM(jv.debit - jv.kredit)::numeric(18,2) AS kas_akhir\n  FROM g_jurnal g JOIN jurnalvc jv ON jv.transaction_id = g.id\n  JOIN kiraan k ON k.id = jv.account_id\n  WHERE g.status = 'approved' AND COALESCE(k.is_cash,'0') = '1'\n)\nSELECT mv.section_urut, mv.section, mv.akun_kode, mv.akun_nama, mv.nilai,\n       (SELECT kas_akhir FROM kasakhir) AS kas_akhir\nFROM mv\nORDER BY mv.section_urut, mv.akun_kode {andOrder} {limit}",
+  "query_count": "WITH mv AS (\n  SELECT 1 AS x\n  FROM (\n    SELECT jv.account_id AS account_id, jv.debit AS debit, jv.kredit AS kredit,\n           g.tanggal::date AS d, g.department_id AS department_id, g.project_id AS project_id,\n           jv.cost_code_id AS cost_code_id\n    FROM g_jurnal g JOIN jurnalvc jv ON jv.transaction_id = g.id\n    WHERE g.status = 'approved'\n  ) G1\n  JOIN kiraan  k  ON k.id  = G1.account_id\n  JOIN subklas sk ON sk.id = k.subclassification_id\n  WHERE COALESCE(k.is_cash,'0') <> '1' {andWhere}\n  GROUP BY sk.cash_flow_type, k.code, k.nama\n  HAVING SUM(G1.kredit - G1.debit) <> 0\n)\nSELECT COUNT(*) FROM mv"
+}

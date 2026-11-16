@@ -1,0 +1,20 @@
+{
+  "reason": "Zahir Insight - PSAK 109: neraca_psak109",
+  "name": "neraca_psak109",
+  "field": {
+    "account_id": "G1.account_id",
+    "akun_kode": "akun_kode",
+    "akun_nama": "akun_nama",
+    "cost_code_id": "G1.cost_code_id",
+    "date": "G1.D",
+    "department_id": "G1.department_id",
+    "kelompok": "kelompok",
+    "kelompok_urut": "kelompok_urut",
+    "nilai": "nilai",
+    "project_id": "G1.project_id",
+    "subkelompok": "subkelompok",
+    "subkelompok_urut": "subkelompok_urut"
+  },
+  "query": "WITH base AS (\n  SELECT k.code AS code, k.nama AS nama,\n         kl.noklasifikasi AS klno, kl.namaklasifikasi AS klnama,\n         sk.nosubklasifikasi AS skno, sk.namasubklasifikasi AS sknama,\n         G1.debit AS debit, G1.kredit AS kredit\n  FROM (\n    SELECT g.id AS gid, g.tanggal::date AS d, g.department_id AS department_id,\n           g.project_id AS project_id, jv.account_id AS account_id,\n           jv.cost_code_id AS cost_code_id, jv.debit AS debit, jv.kredit AS kredit\n    FROM g_jurnal g\n    JOIN jurnalvc jv ON jv.transaction_id = g.id\n    WHERE g.status = 'approved'\n  ) G1\n  JOIN kiraan  k  ON k.id  = G1.account_id\n  JOIN subklas sk ON sk.id = k.subclassification_id\n  JOIN klas    kl ON kl.id = sk.classification_id\n  WHERE kl.noklasifikasi IN (1,2,3,4,5,6,7,8,9) {andWhere}\n)\nSELECT kelompok_urut, kelompok, subkelompok_urut, subkelompok, akun_kode, akun_nama, nilai\nFROM (\n  -- Akun-akun NERACA (Aset / Liabilitas / Dana). Surplus L/R digabungkan ke\n  -- akun laba tahun berjalan: 3201010100001 (Aset Neto Ifsho Umum).\n  SELECT\n    klno AS kelompok_urut,\n    CASE WHEN klno = 3 THEN 'Dana' ELSE klnama END AS kelompok,\n    skno AS subkelompok_urut, sknama AS subkelompok,\n    code AS akun_kode, nama AS akun_nama,\n    ((CASE WHEN klno = 1 THEN SUM(debit - kredit) ELSE SUM(kredit - debit) END)\n      + CASE WHEN code = '3201010100001'\n             THEN (SELECT COALESCE(SUM(kredit - debit),0) FROM base WHERE klno IN (4,5,6,7,8,9))\n             ELSE 0 END\n    )::numeric(18,2) AS nilai\n  FROM base\n  WHERE klno IN (1,2,3)\n  GROUP BY klno, klnama, skno, sknama, code, nama\n  HAVING SUM(debit - kredit) <> 0 OR code = '3201010100001'\n) z\nORDER BY kelompok_urut, subkelompok_urut, akun_kode {andOrder} {limit}",
+  "query_count": "WITH base AS (\n  SELECT k.code AS code, k.nama AS nama,\n         kl.noklasifikasi AS klno, kl.namaklasifikasi AS klnama,\n         sk.nosubklasifikasi AS skno, sk.namasubklasifikasi AS sknama,\n         G1.debit AS debit, G1.kredit AS kredit\n  FROM (\n    SELECT g.id AS gid, g.tanggal::date AS d, g.department_id AS department_id,\n           g.project_id AS project_id, jv.account_id AS account_id,\n           jv.cost_code_id AS cost_code_id, jv.debit AS debit, jv.kredit AS kredit\n    FROM g_jurnal g\n    JOIN jurnalvc jv ON jv.transaction_id = g.id\n    WHERE g.status = 'approved'\n  ) G1\n  JOIN kiraan  k  ON k.id  = G1.account_id\n  JOIN subklas sk ON sk.id = k.subclassification_id\n  JOIN klas    kl ON kl.id = sk.classification_id\n  WHERE kl.noklasifikasi IN (1,2,3,4,5,6,7,8,9) {andWhere}\n)\nSELECT COUNT(*) FROM (\n  SELECT 1 FROM base WHERE klno IN (1,2,3)\n    GROUP BY klno, klnama, skno, sknama, code, nama\n    HAVING SUM(debit - kredit) <> 0 OR code = '3201010100001'\n) q"
+}

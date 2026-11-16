@@ -1,0 +1,23 @@
+{
+  "reason": "Zahir Insight - PSAK 109: laporan_aktivitas_psak109",
+  "name": "laporan_aktivitas_psak109",
+  "field": {
+    "account_id": "G1.account_id",
+    "akun_kode": "akun_kode",
+    "akun_nama": "akun_nama",
+    "cost_code_id": "G1.cost_code_id",
+    "dana": "dana",
+    "dana_code": "dana_code",
+    "date": "G1.d",
+    "department_id": "G1.department_id",
+    "nilai": "nilai",
+    "project_id": "G1.project_id",
+    "saldo_akhir_dana": "saldo_akhir_dana",
+    "section": "section",
+    "section_urut": "section_urut",
+    "subklas": "subklas",
+    "subklas_urut": "subklas_urut"
+  },
+  "query": "WITH\nmv AS (\n  SELECT\n    COALESCE(cc.code,'ZZZZZ') AS dana_code, COALESCE(cc.name,'(Tanpa Dana)') AS dana,\n    CASE WHEN kl.noklasifikasi IN (4,8) THEN 1 ELSE 2 END AS section_urut,\n    CASE WHEN kl.noklasifikasi IN (4,8) THEN 'Penghasilan' ELSE 'Beban' END AS section,\n    sk.nosubklasifikasi AS subklas_urut, sk.namasubklasifikasi AS subklas,\n    k.code AS akun_kode, k.nama AS akun_nama,\n    (CASE WHEN kl.noklasifikasi IN (4,8) THEN SUM(G1.kredit - G1.debit)\n          ELSE SUM(G1.debit - G1.kredit) END)::numeric(18,2) AS nilai\n  FROM (\n    SELECT g.id AS gid, g.tanggal::date AS d, g.department_id AS department_id,\n           g.project_id AS project_id, jv.account_id AS account_id,\n           jv.cost_code_id AS cost_code_id, jv.debit AS debit, jv.kredit AS kredit\n    FROM g_jurnal g JOIN jurnalvc jv ON jv.transaction_id = g.id\n    WHERE g.status = 'approved'\n  ) G1\n  LEFT JOIN cost_codes cc ON cc.id = G1.cost_code_id\n  JOIN kiraan     k  ON k.id  = G1.account_id\n  JOIN subklas    sk ON sk.id = k.subclassification_id\n  JOIN klas       kl ON kl.id = sk.classification_id\n  WHERE kl.noklasifikasi IN (4,5,6,7,8,9) {andWhere}\n  GROUP BY COALESCE(cc.code,'ZZZZZ'), COALESCE(cc.name,'(Tanpa Dana)'),\n           kl.noklasifikasi,\n           sk.nosubklasifikasi, sk.namasubklasifikasi, k.code, k.nama\n  HAVING (CASE WHEN kl.noklasifikasi IN (4,8) THEN SUM(G1.kredit - G1.debit)\n               ELSE SUM(G1.debit - G1.kredit) END) <> 0\n),\nakhir AS (\n  -- Net aset akhir per dana = akumulasi (penerimaan - penyaluran) SELURUH riwayat (TANPA filter periode).\n  -- Saldo Awal dihitung di layer laporan = saldo_akhir_dana - surplus periode.\n  -- Catatan: akurat bila tanggal-akhir filter >= tanggal data terakhir (laporan setahun/penuh).\n  SELECT COALESCE(cc.code,'ZZZZZ') AS dana_code, SUM(jv.kredit - jv.debit)::numeric(18,2) AS saldo_akhir_dana\n  FROM g_jurnal g\n  JOIN jurnalvc jv ON jv.transaction_id = g.id\n  LEFT JOIN cost_codes cc ON cc.id = jv.cost_code_id\n  JOIN kiraan     k  ON k.id  = jv.account_id\n  JOIN subklas    sk ON sk.id = k.subclassification_id\n  JOIN klas       kl ON kl.id = sk.classification_id\n  WHERE g.status = 'approved' AND kl.noklasifikasi IN (4,5,6,7,8,9)\n  GROUP BY COALESCE(cc.code,'ZZZZZ')\n)\nSELECT mv.dana_code, mv.dana, mv.section_urut, mv.section, mv.subklas_urut, mv.subklas,\n       mv.akun_kode, mv.akun_nama, mv.nilai,\n       COALESCE(ak.saldo_akhir_dana, 0)::numeric(18,2) AS saldo_akhir_dana\nFROM mv\nLEFT JOIN akhir ak ON ak.dana_code = mv.dana_code\nORDER BY mv.dana_code, mv.section_urut, mv.subklas_urut, mv.akun_kode {andOrder} {limit}",
+  "query_count": "WITH\nmv AS (\n  SELECT 1 AS x\n  FROM (\n    SELECT g.id AS gid, g.tanggal::date AS d, g.department_id AS department_id,\n           g.project_id AS project_id, jv.account_id AS account_id,\n           jv.cost_code_id AS cost_code_id, jv.debit AS debit, jv.kredit AS kredit\n    FROM g_jurnal g JOIN jurnalvc jv ON jv.transaction_id = g.id\n    WHERE g.status = 'approved'\n  ) G1\n  LEFT JOIN cost_codes cc ON cc.id = G1.cost_code_id\n  JOIN kiraan     k  ON k.id  = G1.account_id\n  JOIN subklas    sk ON sk.id = k.subclassification_id\n  JOIN klas       kl ON kl.id = sk.classification_id\n  WHERE kl.noklasifikasi IN (4,5,6,7,8,9) {andWhere}\n  GROUP BY COALESCE(cc.code,'ZZZZZ'), COALESCE(cc.name,'(Tanpa Dana)'),\n           kl.noklasifikasi,\n           sk.nosubklasifikasi, sk.namasubklasifikasi, k.code, k.nama\n  HAVING (CASE WHEN kl.noklasifikasi IN (4,8) THEN SUM(G1.kredit - G1.debit)\n               ELSE SUM(G1.debit - G1.kredit) END) <> 0\n)\nSELECT COUNT(*) FROM mv"
+}

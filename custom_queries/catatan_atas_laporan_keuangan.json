@@ -1,0 +1,24 @@
+{
+  "reason": "Zahir Insight - PSAK 109: catatan_atas_laporan_keuangan",
+  "name": "catatan_atas_laporan_keuangan",
+  "field": {
+    "account_id": "jv.account_id",
+    "akun_kode": "b.akun_kode",
+    "akun_nama": "b.akun_nama",
+    "cost_code_id": "jv.cost_code_id",
+    "date": "g.tanggal",
+    "department_id": "g.department_id",
+    "g4_kode": "b.g4",
+    "g4_nama": "g4_nama",
+    "g6_kode": "b.g6",
+    "g6_nama": "g6_nama",
+    "kl_nama": "kl_nama",
+    "kl_no": "kl_no",
+    "nilai": "b.nilai",
+    "note_no": "note_no",
+    "project_id": "g.project_id",
+    "show_sub": "show_sub"
+  },
+  "query": "WITH\n  base AS (\n    SELECT k.code AS akun_kode, k.nama AS akun_nama,\n           substring(sk.nosubklasifikasi::text,1,4) AS g4,\n           substring(sk.nosubklasifikasi::text,1,6) AS g6,\n           kl.noklasifikasi AS klno, kl.namaklasifikasi AS klnama,\n           SUM(CASE WHEN kl.noklasifikasi IN (1,5,6,7,9) THEN jv.debit - jv.kredit ELSE jv.kredit - jv.debit END)::numeric(18,2) AS nilai\n    FROM g_jurnal g\n    JOIN jurnalvc jv ON jv.transaction_id = g.id\n    JOIN kiraan   k  ON k.id  = jv.account_id\n    JOIN subklas  sk ON sk.id = k.subclassification_id\n    JOIN klas     kl ON kl.id = sk.classification_id\n    WHERE g.status = 'approved' AND k.code <> '3201010100001'\n    GROUP BY k.code, k.nama, substring(sk.nosubklasifikasi::text,1,4),\n             substring(sk.nosubklasifikasi::text,1,6), kl.noklasifikasi, kl.namaklasifikasi\n    HAVING SUM(CASE WHEN kl.noklasifikasi IN (1,5,6,7,9) THEN jv.debit - jv.kredit ELSE jv.kredit - jv.debit END) <> 0\n  ),\ng4sub AS (\n  SELECT g4, COUNT(*) AS n_sub\n  FROM (SELECT DISTINCT g4, g6 FROM base) d\n  GROUP BY g4\n)\nSELECT\n  b.g4 AS g4_kode,\n  COALESCE(s4.namasubklasifikasi, b.g4) AS g4_nama,\n  b.g6 AS g6_kode,\n  COALESCE(s6.namasubklasifikasi, b.g6) AS g6_nama,\n  b.akun_kode, b.akun_nama, b.nilai,\n  b.klno::text AS kl_no,\n  CASE WHEN b.klno = 3 THEN 'Aset Neto' ELSE b.klnama END AS kl_nama,\n  DENSE_RANK() OVER (ORDER BY b.klno, b.g4)::text AS note_no,\n  CASE WHEN COALESCE(gs.n_sub,1) > 1 THEN 'Y' ELSE 'N' END AS show_sub\nFROM base b\nLEFT JOIN subklas s4 ON s4.nosubklasifikasi::text = b.g4\nLEFT JOIN subklas s6 ON s6.nosubklasifikasi::text = b.g6\nLEFT JOIN g4sub   gs ON gs.g4 = b.g4\nORDER BY b.klno, b.g4, b.g6, b.akun_kode {andOrder} {limit}",
+  "query_count": "WITH\n  base AS (\n    SELECT k.code AS akun_kode, k.nama AS akun_nama,\n           substring(sk.nosubklasifikasi::text,1,4) AS g4,\n           substring(sk.nosubklasifikasi::text,1,6) AS g6,\n           kl.noklasifikasi AS klno, kl.namaklasifikasi AS klnama,\n           SUM(CASE WHEN kl.noklasifikasi IN (1,5,6,7,9) THEN jv.debit - jv.kredit ELSE jv.kredit - jv.debit END)::numeric(18,2) AS nilai\n    FROM g_jurnal g\n    JOIN jurnalvc jv ON jv.transaction_id = g.id\n    JOIN kiraan   k  ON k.id  = jv.account_id\n    JOIN subklas  sk ON sk.id = k.subclassification_id\n    JOIN klas     kl ON kl.id = sk.classification_id\n    WHERE g.status = 'approved' AND k.code <> '3201010100001'\n    GROUP BY k.code, k.nama, substring(sk.nosubklasifikasi::text,1,4),\n             substring(sk.nosubklasifikasi::text,1,6), kl.noklasifikasi, kl.namaklasifikasi\n    HAVING SUM(CASE WHEN kl.noklasifikasi IN (1,5,6,7,9) THEN jv.debit - jv.kredit ELSE jv.kredit - jv.debit END) <> 0\n  )\nSELECT COUNT(*) FROM base"
+}

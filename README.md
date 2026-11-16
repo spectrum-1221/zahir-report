@@ -286,21 +286,18 @@ Yang terjadi pada database yang dibatasi:
   Data master untuk filter (akun, kontak, departemen, …) tetap bisa dibaca.
 - Pembatasan ini berlaku untuk pemakaian lewat Zahir Insight. Hak akses data di Zahir Online sendiri tetap diatur dari pengaturan pengguna Zahir.
 
-## Laporan keuangan amil zakat — PSAK 109 (v2.41)
-Kategori **PSAK 109 (Amil Zakat)** di katalog (PSAK 109 sejak 2024 bernomor PSAK 409, isinya sama):
+## Laporan PSAK 109 (v2.41)
+Kategori **PSAK 109** di katalog memakai custom query PSAK 109 yang sama dengan template Jasper Zahir Online (susunan grup, subtotal dan ringkasan mengikuti templatenya; logika di `public/psak109.js`):
 
-| id | Laporan | Keterangan |
-|---|---|---|
-| `psak_lpk` | Laporan Posisi Keuangan | aset, liabilitas, saldo dana zakat / infak-sedekah / amil / nonhalal per tanggal akhir |
-| `psak_lpd` | Laporan Perubahan Dana | per dana: penerimaan, bagian amil, penyaluran (8 asnaf untuk zakat), surplus/defisit, saldo awal & akhir |
-| `psak_lpak` | Laporan Perubahan Aset Kelolaan | saldo awal, penambahan, pengurangan, akumulasi penyusutan & penyisihan, saldo akhir |
-| `psak_lak` | Laporan Arus Kas | metode langsung: operasi / investasi / pendanaan, dicocokkan dengan saldo kas di neraca |
-| `psak_map` | Pemetaan Akun PSAK 109 | akun → pos laporan |
+| id | Laporan | Custom query | Filter |
+|---|---|---|---|
+| `psak_neraca` | Laporan Posisi Keuangan (Neraca) | `neraca_psak109` | per tanggal (`date.$lte`), dana (cost code), departemen, proyek |
+| `psak_aktivitas` | Laporan Aktivitas (Perubahan Dana) | `laporan_aktivitas_psak109` | periode, dana, departemen, proyek |
+| `psak_perubahan_dana` | Perubahan Dana per Dana (Cost Code) | `perubahan_dana_psak109` | periode, dana, departemen, proyek |
+| `psak_ak_langsung` | Laporan Arus Kas (Metode Langsung) | `arus_kas_langsung` | periode, departemen, proyek |
+| `psak_ak_tl` | Laporan Arus Kas (Metode Tidak Langsung) | `arus_kas_tidak_langsung` | periode, departemen, proyek |
+| `psak_calk` | Catatan atas Laporan Keuangan | `catatan_atas_laporan_keuangan` | — (kumulatif seluruh periode) |
 
-- Data: custom query `bb_saldo_awal` (saldo per akun sebelum & selama periode) dan `psak109_kas_lawan` (baris jurnal transaksi yang menyentuh akun kas/bank, untuk memilah arus kas menurut akun lawan; dipasang otomatis lewat *Periksa custom query bawaan*).
-  Keempat laporan memakai data yang sama — pindah tab tidak menarik ulang data; *Excel semua laporan* = satu file, satu sheet per laporan.
-- **Pemetaan akun**: tiap akun dipetakan ke satu pos (mis. *Kas dan setara kas*, *Saldo dana zakat*, *Penerimaan dari muzaki individual*, *Bagian amil atas penerimaan dana zakat*, *Fakir*, *Beban pegawai*, *Bunga bank*). Akun pendapatan/beban otomatis menambah/mengurangi saldo dana tempat pos-nya berada, jadi saldo dana = akun saldo dana + akumulasi penerimaan − penyaluran sejak awal.
-  Akun yang belum disimpan ditebak dari namanya (label *tebakan*). Pos arus kas mengikuti pos laporan dan bisa diganti per akun; akun akumulasi penyusutan/penyisihan aset kelolaan bisa dikaitkan ke akun aset kelolaannya.
-- Pemetaan disimpan di server (`data/psak109.<slug>`) dan berlaku untuk semua pengguna database itu. Versi online (Vercel) tidak punya penyimpanan tetap → pemetaan disimpan di browser; pakai tombol *Ekspor*/*Impor* untuk memindahkannya.
-- Akun yang belum dipetakan tetap dihitung (aset lain / liabilitas lain / *saldo dana belum dipetakan*, ditandai merah) sehingga laporan posisi keuangan selalu seimbang; peringatan muncul bila neraca atau arus kas berselisih.
-- Pembatasan per slug (`access.json`) memakai id di tabel di atas; tab yang tidak diizinkan tidak tampil, dan transaksi kas tidak diambil bila `psak_lak` tidak diizinkan.
+Custom query ikut di `custom_queries/` dan dipasang lewat *Periksa custom query bawaan* bila belum ada. Ekspor Excel: angka asli (bisa dijumlah).
+Catatan dari isi query: neraca menggabungkan surplus ke akun `3201010100001` (akun itu harus ada dan punya transaksi agar neraca seimbang);
+saldo akhir dana (laporan aktivitas) dan saldo kas akhir (arus kas) dihitung dari seluruh riwayat tanpa batas tanggal akhir.
