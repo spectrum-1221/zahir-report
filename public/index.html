@@ -654,9 +654,18 @@ const CATALOG = [
     { id:'psak_calk', title:'Catatan atas Laporan Keuangan', mode:'psak', kind:'calk', cq:'catatan_atas_laporan_keuangan', filters:[] },
   ]},
   { category:'PSAK 118', items:[
-    // laba rugi format PSAK 118 / IFRS 18: mutasi per akun (bb_saldo_awal) periode ini + periode yang sama tahun lalu, dipetakan ke pos (public/psak118.js)
-    { id:'psak118_lr', title:'Laporan Laba Rugi (PSAK 118)', mode:'p118', cq:'bb_saldo_awal', filters:[{preset:'date',label:'Periode'},'dept','proj',{preset:'cost',label:'Kode Biaya'}] },
-    { id:'psak118_map', title:'Pemetaan Akun PSAK 118', mode:'p118map', cq:'bb_saldo_awal' },
+    // laporan keuangan PSAK 118 (IFRS 18) dari custom query PSAK 118; kategori/pos ditentukan di query (tanpa pemetaan akun); susunan di public/psak118.js
+    // kolom pembanding = tanggal/periode yang sama tahun lalu; arus kas & perubahan ekuitas memakai filter mulai.$gte (awal periode) + date.$lte
+    { id:'psak118_neraca', title:'Laporan Posisi Keuangan (PSAK 118)', mode:'psak', kind:'neraca118', cq:'neraca_psak118',
+      filters:[{preset:'date',asof:true,label:'Per Tanggal'},'dept','proj',{preset:'cost',label:'Kode Biaya'}] },
+    { id:'psak118_lr', title:'Laporan Laba Rugi (PSAK 118)', mode:'psak', kind:'lr118', cq:'laba_rugi_psak118',
+      filters:[{preset:'date',label:'Periode'},'dept','proj',{preset:'cost',label:'Kode Biaya'}] },
+    { id:'psak118_ekuitas', title:'Laporan Perubahan Ekuitas (PSAK 118)', mode:'psak', kind:'ekuitas118', cq:'perubahan_ekuitas_psak118', rangeKey:'mulai',
+      filters:[{preset:'date',label:'Periode'},'dept','proj',{preset:'cost',label:'Kode Biaya'}] },
+    { id:'psak118_arus', title:'Laporan Arus Kas (PSAK 118)', mode:'psak', kind:'arus118', cq:'arus_kas_psak118', rangeKey:'mulai',
+      filters:[{preset:'date',label:'Periode'},'dept','proj',{preset:'cost',label:'Kode Biaya'}] },
+    { id:'psak118_calk', title:'Catatan atas Laporan Keuangan (PSAK 118)', mode:'psak', kind:'calk118', cq:'neraca_psak118',
+      cqs:[{cq:'neraca_psak118',tag:'n',asof:true},{cq:'laba_rugi_psak118',tag:'l'}], filters:[{preset:'date',label:'Periode'},'dept','proj',{preset:'cost',label:'Kode Biaya'}] },
   ]},
 ];
 
@@ -832,18 +841,17 @@ async function buildCatalog(){
   const visible=allReports().filter(it=>reportAllowed(it.id));
   if(!visible.length){ $('#cards').innerHTML=`<div class="empty">${st.accessErr?esc(st.accessErr)+' — ':''}Belum ada laporan yang diizinkan untuk database ini. Hubungi admin Zahir Insight.</div>`; return; }
   for(const it of visible){ const k=it.category||'Lainnya'; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(it); }
-  $('#cards').innerHTML=[...groups].map(([cat,items])=>`<div class="cat"><h3>${esc(cat)}<i>▲</i></h3>${items.map(it=>`<a href="#" class="it" data-id="${it.id}"><span class="st">★</span>${esc(it.title)}${st.online||st.access||it.mode==='pick'||it.mode==='psak'||it.mode==='p118'||it.mode==='p118map'?'':`<span class="ed" data-edit="${it.id}" title="Ubah desain">✎</span>`}</a>`).join('')}</div>`).join('');
+  $('#cards').innerHTML=[...groups].map(([cat,items])=>`<div class="cat"><h3>${esc(cat)}<i>▲</i></h3>${items.map(it=>`<a href="#" class="it" data-id="${it.id}"><span class="st">★</span>${esc(it.title)}${st.online||st.access||it.mode==='pick'||it.mode==='psak'?'':`<span class="ed" data-edit="${it.id}" title="Ubah desain">✎</span>`}</a>`).join('')}</div>`).join('');
   $('#cards').querySelectorAll('a.it').forEach(a=>a.onclick=e=>{ e.preventDefault(); if(e.target.dataset.edit){ openDesigner(e.target.dataset.edit); return; } openReport(a.dataset.id); });
 }
 async function openReport(id){
   const r=allReports().find(x=>x.id===id); if(!r||!reportAllowed(id)) return;
-  if(r.mode==='p118map'){ st.report=r; st.cq=r.cq; $('#rptCrumb').textContent=r.title; showPage('pgRpt'); st.shown=true; $('#btnXlsxDirect').classList.add('hide'); $('#btnRun').disabled=$('#btnFilter').disabled=true; P118.back=false; p118MapOpen(); return; }
   $('#btnRun').disabled=$('#btnFilter').disabled=false;
   st.report=r; st.cq=r.cq; $('#rptCrumb').textContent=r.title; $('#rTitle').textContent=r.title.toUpperCase(); $('#fModalTitle').textContent=r.title;
   showPage('pgRpt'); st.shown=false; $('#status').textContent=''; $('#rCo').textContent=st.company?.name||''; $('#rPer').textContent=''; $('#rFil').innerHTML=''; $('#rBody').innerHTML=''; $('#more').classList.add('hide');
   $('#btnXlsx').disabled=$('#btnPrint').disabled=$('#btnExpand').disabled=true;
   // pilih faktur: interaktif di layar, jadi tanpa "Ekspor langsung" (server tidak tahu faktur mana yang dicentang)
-  const noDirect=r.mode==='pick'||r.mode==='psak'||r.mode==='p118'; $('#fOut').closest('.fout').classList.toggle('hide',noDirect); $('#btnXlsxDirect').classList.toggle('hide',noDirect);
+  const noDirect=r.mode==='pick'||r.mode==='psak'; $('#fOut').closest('.fout').classList.toggle('hide',noDirect); $('#btnXlsxDirect').classList.toggle('hide',noDirect);
   ov.show('Menyiapkan laporan','Memuat pilihan filter…'); ov.set(30,'');
   await buildFilterPanel(r);
   if(!st.lookupsLoaded){ await loadLookups(); st.lookupsLoaded=true; }
@@ -1399,8 +1407,8 @@ async function parallel(items,limit,fn){ const out=new Array(items.length); let 
 // Paket permintaan laporan (dipakai preview di browser dan ekspor langsung di server)
 function reportRequest(){
   const F=collectFilters(); const r=st.report;
-  const mode=r.custom?r.mode:(r.mode==='raw'?'ledger':(r.mode==='tb'||r.mode==='journal'||r.mode==='pick'||r.mode==='psak'||r.mode==='p118')?r.mode:'legacy');
-  return { F, mode, monthly: mode==='tb'||mode==='pick'||mode==='psak'||mode==='p118'?false:mode==='journal'||mode==='ledger'||mode==='legacy'||r.fetch==='monthly'||r.fetch==='monthly_sum', summarize: mode==='table'&&r.fetch==='monthly_sum',
+  const mode=r.custom?r.mode:(r.mode==='raw'?'ledger':(r.mode==='tb'||r.mode==='journal'||r.mode==='pick'||r.mode==='psak')?r.mode:'legacy');
+  return { F, mode, monthly: mode==='tb'||mode==='pick'||mode==='psak'?false:mode==='journal'||mode==='ledger'||mode==='legacy'||r.fetch==='monthly'||r.fetch==='monthly_sum', summarize: mode==='table'&&r.fetch==='monthly_sum',
     // custom query buku besar "jadi" sebagai cadangan bila bb_trx tidak ada di database ini (laporan bawaan, termasuk yang sudah diubah desainnya)
     report:{ id:r.id, title:r.title, custom:!!r.custom, mode, cur:r.cur||null, cq:r.cq, cqTrx:r.cqTrx, cqSaldo:r.cqSaldo, crosstab:r.crosstab, cols:r.cols, fetch:r.fetch, totRow:r.totRow, groupBy:r.groupBy||[], groupSub:r.groupSub, groupHide:r.groupHide, labKode:r.labKode, labAkun:r.labAkun,
       legacyCq: mode==='ledger' ? (r.custom ? (builtinReports().find(b=>b.id===r.id)?.cq||null) : r.cq) : null } };
@@ -1408,7 +1416,7 @@ function reportRequest(){
 $('#btnRun').onclick=()=>runReport({force:true});   // ⟳ = ambil ulang dari server, abaikan cache
 function renderMode(mode,rows,d1,d2){
   if(mode==='journal') renderJournal(rows,d1,d2); else if(mode==='tb') renderTB(rows,d1,d2); else if(mode==='crosstab') renderCrosstab(rows,d1,d2);
-  else if(mode==='table') renderTable(rows,d1,d2); else if(mode==='pick') renderPick(rows,d1,d2); else if(mode==='p118') p118Render(rows,d1,d2).catch(err=>{ $('#status').textContent='Gagal menyusun laporan: '+err.message; }); else if(mode==='psak') renderPsak(rows,d1,d2).catch(err=>{ $('#status').textContent='Gagal menyusun laporan: '+err.message; }); else render(rows,d1,d2);
+  else if(mode==='table') renderTable(rows,d1,d2); else if(mode==='pick') renderPick(rows,d1,d2); else if(mode==='psak') renderPsak(rows,d1,d2).catch(err=>{ $('#status').textContent='Gagal menyusun laporan: '+err.message; }); else render(rows,d1,d2);
 }
 async function runReport({force=false}={}){
   const {F,mode,monthly,summarize,report}=reportRequest(); const useDate=!!F.date; const d1=F.date?.d1||'', d2=F.date?.d2||'';
@@ -1481,20 +1489,14 @@ async function runReport({force=false}={}){
       ov.sub('Menyusun jurnal…'); await sleep(20); rows=JB.build(st.ttypes);
       const fc=tbRowOpts(await tbAccounts()).code; for(const x of rows) if(x.kode_akun) x.kode_akun=fc(x.kode_akun);   // kode akun berformat seperti di Zahir
     }
-    if(mode==='p118'){
-      // periode ini + periode yang sama setahun sebelumnya (pembanding), masing-masing satu permintaan per kombinasi filter
-      if(!useDate) throw new Error('Laporan PSAK 118 memerlukan filter tanggal');
-      const [p1,p2]=p118Prev(d1,d2); rows=[]; const jobs=[];
-      for(const c of F.combos){ jobs.push([{...F.base,...c,'date.$gte':d1,'date.$lte':d2},'c']); jobs.push([{...F.base,...c,'date.$gte':p1,'date.$lte':p2},'p']); }
-      T.total=jobs.length;
-      for(const [p,tag] of jobs){ await fetchChunk(p,n=>T.rows(n),'bb_saldo_awal',null,x=>{ x.__p=tag; rows.push(x); }); T.done(); }
-      ov.sub('Memuat pemetaan akun…'); await p118MapLoad();
-    }
     if(mode==='psak'){
       // satu permintaan per kombinasi filter; neraca hanya date.$lte (per tanggal), CALK tanpa filter tanggal
-      rows=[]; const jobs=F.combos.map(c=>({...F.base,...c,...(!useDate?{}:F.date.asof?{'date.$lte':d2}:{'date.$gte':d1,'date.$lte':d2})})); T.total=jobs.length;
-      try{ for(const p of jobs){ await fetchChunk(p,n=>T.rows(n),r.cq,null,x=>rows.push(x)); T.done(); } }
-      catch(err){ if(/not found|tidak ditemukan|404|custom query/i.test(err.message)) throw new Error(err.message+' — custom query '+r.cq+' belum terpasang di database ini. Kembali ke daftar laporan lalu klik "Periksa custom query bawaan".'); throw err; }
+      // r.cqs: beberapa custom query dalam satu laporan (baris diberi tanda __q); rangeKey: kunci filter awal periode (mis. mulai.$gte)
+      rows=[]; const specs=r.cqs||[{cq:r.cq}];
+      const dateOf=sp=>!useDate?{}:(F.date.asof||sp.asof)?{'date.$lte':d2}:{[(r.rangeKey||'date')+'.$gte']:d1,'date.$lte':d2};
+      const jobs=[]; for(const sp of specs) for(const c of F.combos) jobs.push([sp,{...F.base,...c,...dateOf(sp)}]); T.total=jobs.length; let cur='';
+      try{ for(const [sp,p] of jobs){ cur=sp.cq; await fetchChunk(p,n=>T.rows(n),sp.cq,null,x=>{ if(sp.tag) x.__q=sp.tag; rows.push(x); }); T.done(); } }
+      catch(err){ if(/not found|tidak ditemukan|404|custom query/i.test(err.message)) throw new Error(err.message+' — custom query '+cur+' belum terpasang di database ini. Kembali ke daftar laporan lalu klik "Periksa custom query bawaan".'); throw err; }
     }
     if(mode==='pick'&&r.src==='receivable'){
       // faktur approved: receivable_summary per tanggal akhir (sisa sudah dikurangi cicilan & retur); yang lunas dibuang
@@ -1925,7 +1927,7 @@ function pkShowReport(){
 const psakNum=v=>v==null||v===''?'':nfmt(2).format(+v);
 function psakPeriod(kind,d1,d2){ const per=Psak109.KINDS[kind].per; return per==='asof'?`Per Tanggal : ${fmtDate(d2)}`:per==='all'?'Disajikan secara kumulatif - seluruh periode':`Periode : ${fmtDate(d1)} s/d ${fmtDate(d2)}`; }
 async function renderPsak(rows,d1,d2){
-  const r=st.report, kind=r.kind, K=Psak109.KINDS[kind]; const R=Psak109.build(kind,rows);
+  const r=st.report, kind=r.kind, K=Psak109.KINDS[kind]; const R=Psak109.build(kind,rows,{d1,d2,detail:!!st.psakDetail});
   let fk=x=>x; try{ fk=tbRowOpts(await tbAccounts()).code; }catch{}
   for(const x of R.rows) if(x.kode) x.kodeF=fk(x.kode);
   st.psak={kind,R,d1,d2};
@@ -1940,7 +1942,9 @@ async function renderPsak(rows,d1,d2){
     if(x.t==='item'&&x.kode) return `<tr class="${cls(x)}"><td class="nw kd" ${pad(x)}>${esc(x.kodeF)}</td><td>${esc(x.label)}</td>${cols.filter(c=>c.num).map(c=>`<td class="r nw">${psakNum(val(x,c))}</td>`).join('')}</tr>`;
     return `<tr class="${cls(x)}"><td colspan="2" ${pad(x)}>${esc(x.label)}</td>${cols.filter(c=>c.num).map(c=>`<td class="r nw">${psakNum(val(x,c))}</td>`).join('')}</tr>`;
   }).join('');
-  $('#rBody').innerHTML=rows.length?`<table class="gl ps"><colgroup><col style="width:150px"><col>${'<col style="width:170px">'.repeat(nc)}</colgroup><thead><tr>${cols.map(c=>`<th${c.num?' class="r"':''}>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`:'<div class="empty">Tidak ada data untuk filter ini.</div>';
+  const bar=K.toggle?`<div class="pkbar psbar"><label class="pk"><input type="checkbox" id="psDet"${st.psakDetail?' checked':''}> Rincian per akun</label></div>`:'';
+  $('#rBody').innerHTML=rows.length?bar+`<table class="gl ps${K.cls?' '+K.cls:''}"><colgroup><col style="width:150px"><col>${'<col style="width:170px">'.repeat(nc)}</colgroup><thead><tr>${cols.map(c=>`<th${c.num?' class="r"':''}>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`:'<div class="empty">Tidak ada data untuk filter ini.</div>';
+  if($('#psDet')) $('#psDet').onchange=()=>{ st.psakDetail=$('#psDet').checked; renderPsak(rows,d1,d2); };
   $('#btnExpand').disabled=true; $('#btnPrint').onclick=()=>window.print(); $('#btnXlsx').onclick=()=>psakXlsx();
 }
 // Excel: angka asli (bisa dijumlah), judul grup & total tebal, indentasi mengikuti tingkat
@@ -1967,102 +1971,6 @@ async function psakXlsx(){
     const buf=await wb.xlsx.writeBuffer(); const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
     const a=document.createElement('a'); a.href=url; a.download=`${st.report.title.replace(/[^\w]+/g,'_')}_${P.kind==='calk'?'kumulatif':(Psak109.KINDS[P.kind].per==='asof'?P.d2:P.d1+'_'+P.d2)}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
   }catch(err){ alert('Ekspor gagal: '+err.message); } finally{ ov.hide(); }
-}
-
-/* ---------- PSAK 118: laba rugi dengan kategori operasi/investasi/pendanaan/pajak/operasi dihentikan + pemetaan akun ---------- */
-const P118={map:null,key:'',src:'',detail:false,res:null,data:null,draft:null,q:'',only:'',back:false};
-const p118LKey=()=>'psak118.'+(st.slug||st.company?.id||'default');
-function p118Prev(d1,d2){ const sh=d=>{ const [y,m,dd]=d.split('-').map(Number); const t=new Date(Date.UTC(y-1,m-1,dd)); if(t.getUTCMonth()!==m-1) t.setUTCDate(0); return t.toISOString().slice(0,10); }; return [sh(d1),sh(d2)]; }
-async function p118MapLoad(force){
-  if(P118.map&&!force&&P118.key===p118LKey()) return P118.map;
-  let m=null, src='local';
-  try{ const r=await fetch('/psak118/map',{headers:rptHeaders()}); if(r.ok){ m=await r.json(); src='server'; } }catch{}
-  if(!m) m=L.get(p118LKey())||{accounts:{}}; if(!m.accounts) m.accounts={};
-  P118.map=m; P118.src=src; P118.key=p118LKey(); return m;
-}
-async function p118MapSave(accounts){
-  const doc={v:1,accounts,updated:new Date().toISOString()};
-  if(P118.src==='server'){ const r=await fetch('/psak118/map',{method:'PUT',headers:rptHeaders({'Content-Type':'application/json'}),body:JSON.stringify(doc)}); const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||'HTTP '+r.status); P118.map=j; }
-  else { L.set(p118LKey(),doc); P118.map=doc; }
-}
-const p118Fmt=v=>{ if(v==null) return ''; const n=+v; if(Math.abs(n)<0.005) return '-'; const s=nfmt(2).format(Math.abs(n)); return n<0?`(${s})`:s; };
-async function p118Fk(){ try{ return tbRowOpts(await tbAccounts()).code; }catch{ return x=>x; } }
-async function p118Render(rows,d1,d2){ P118.data={rows,d1,d2}; P118.fk=await p118Fk(); p118Draw(); }
-function p118Draw(){
-  const D=P118.data; const [p1,p2]=p118Prev(D.d1,D.d2);
-  const cur=D.rows.filter(r=>r.__p==='c'), prev=D.rows.filter(r=>r.__p==='p');
-  const R=Psak118.build({accs:[],cur,prev,map:P118.map,opt:{detail:P118.detail,fmtKode:P118.fk}}); P118.res=R;
-  const h1=`${fmtDate(D.d1)} s/d ${fmtDate(D.d2)}`, h2=`${fmtDate(p1)} s/d ${fmtDate(p2)}`; P118.heads=[h1,h2];
-  $('#pgRpt').classList.remove('wide'); $('#rTitle').textContent='LAPORAN LABA RUGI (PSAK 118)'; $('#rPer').textContent=`Periode : ${h1}`;
-  const note=[R.unmapped.length?`<b>${R.unmapped.length}</b> akun belum dipetakan (masuk kategori operasi)`:'',R.guessed?`<b>${R.guessed}</b> akun memakai tebakan otomatis`:''].filter(Boolean).join(' · ');
-  const cls=r=>`ps-${r.t}${r.b?' ps-b':''}${r.un?' un':''}`;
-  $('#rBody').innerHTML=`<div class="pkbar psbar"><label class="pk"><input type="checkbox" id="p118Det"${P118.detail?' checked':''}> Rincian per akun</label>
-      <span class="info">${note||'Semua akun sudah dipetakan'}</span><button class="ghost sm" id="p118Map">Pemetaan akun…</button></div>
-    <table class="gl ps p118"><colgroup><col><col style="width:170px"><col style="width:170px"></colgroup>
-    <thead><tr><th>Uraian</th><th class="r">${esc(h1)}</th><th class="r">${esc(h2)}</th></tr></thead><tbody>${R.rows.map(r=>`<tr class="${cls(r)}"><td style="padding-left:${10+(r.lvl||0)*18}px">${esc(r.label)}</td>${r.v.map(v=>`<td class="r nw">${p118Fmt(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>
-    <div class="prev" style="max-width:980px;margin:10px auto 0">Penghasilan bertanda positif, beban dalam kurung. Kolom kanan = periode yang sama tahun sebelumnya.</div>`;
-  $('#p118Det').onchange=()=>{ P118.detail=$('#p118Det').checked; p118Draw(); };
-  $('#p118Map').onclick=()=>{ P118.back=true; p118MapOpen(); };
-  $('#btnXlsx').disabled=$('#btnPrint').disabled=false; $('#btnExpand').disabled=true;
-  $('#btnXlsx').onclick=()=>p118Xlsx(); $('#btnPrint').onclick=()=>window.print();
-}
-async function p118Xlsx(){
-  const R=P118.res, D=P118.data; ov.show('Mengekspor ke Excel',''); try{
-    const ExcelJS=await loadExcelJS(); const wb=new ExcelJS.Workbook(); const ws=wb.addWorksheet('Laba Rugi PSAK 118');
-    ws.columns=[{width:64},{width:22},{width:22}]; const NF='#,##0.00;(#,##0.00);"-"', RED='FF962D2D', PINK='FFCC9595';
-    const title=(t,font)=>{ const r=ws.addRow([t]); ws.mergeCells(r.number,1,r.number,3); r.getCell(1).font=font; r.getCell(1).alignment={horizontal:'center'}; };
-    title(st.company?.name||'',{bold:true,size:14}); title('LAPORAN LABA RUGI (PSAK 118)',{bold:true,size:12,color:{argb:RED}}); title(`Periode : ${P118.heads[0]}`,{size:10}); ws.addRow([]);
-    const h=ws.addRow(['Uraian',...P118.heads]); h.eachCell((c,i)=>{ c.font={bold:true,color:{argb:'FFFFFFFF'}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:RED}}; c.alignment={horizontal:i===1?'left':'right',wrapText:true}; });
-    for(const r of R.rows){ const row=ws.addRow([r.label,...r.v.map(v=>Math.round(v*100)/100)]); row.getCell(1).alignment={indent:(r.lvl||0)*2};
-      const fill=r.t==='tot'||r.t==='gt'?RED:r.t==='sub'?PINK:null;
-      row.eachCell({includeEmpty:true},(c,i)=>{ if(i>1) c.numFmt=NF; c.font={bold:r.t!=='item'&&r.t!=='acc'||!!r.b,italic:r.t==='acc',color:fill?{argb:'FFFFFFFF'}:r.un?{argb:'FFC62828'}:undefined}; if(fill) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:fill}}; }); }
-    ws.views=[{state:'frozen',ySplit:5}];
-    const buf=await wb.xlsx.writeBuffer(); const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
-    const a=document.createElement('a'); a.href=url; a.download=`Laba_Rugi_PSAK118_${D.d1}_${D.d2}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
-  }catch(err){ alert('Ekspor gagal: '+err.message); } finally{ ov.hide(); }
-}
-// halaman pemetaan: tiap akun pendapatan/beban → pos laporan (tebakan otomatis sampai disimpan)
-async function p118MapOpen(){
-  $('#pgRpt').classList.add('wide'); $('#rpt').classList.remove('hide'); $('#more').classList.add('hide');
-  $('#rTitle').textContent='PEMETAAN AKUN PSAK 118'; $('#rCo').textContent=st.company?.name||''; $('#rPer').textContent=''; $('#rFil').innerHTML=''; $('#status').textContent='';
-  $('#btnXlsx').disabled=$('#btnPrint').disabled=$('#btnExpand').disabled=true;
-  ov.show('Memuat daftar akun','');
-  try{
-    await p118MapLoad(true); P118.fk=await p118Fk();
-    let api=[]; try{ api=(await optionsFor(PRESET_FILTERS.account)).map(a=>({kode:a.code,nama:a.name,kls:''})); }catch{}
-    const bal=[]; try{ await fetchChunk({'date.$lte':today()},()=>{},'bb_saldo_awal',null,x=>bal.push(x)); }catch(err){ toast('Saldo akun tidak terbaca: '+err.message,'err'); }
-    P118.mapAcc=Psak118.build({accs:api,cur:bal,prev:null,map:{accounts:{}},opt:{}}).accounts;
-    P118.draft=JSON.parse(JSON.stringify(P118.map.accounts||{}));
-  }catch(err){ ov.hide(); $('#rBody').innerHTML=`<div class="empty">${esc(err.message)}</div>`; return; }
-  ov.hide(); p118MapDraw();
-}
-function p118MapDraw(){
-  const accs=P118.mapAcc||[], dr=P118.draft, q=P118.q.trim().toLowerCase();
-  const eff=a=>{ const m=dr[a.key]; return m&&'pos' in m?{pos:m.pos||'',guessed:false}:{pos:Psak118.guess(a),guessed:true}; };
-  const shown=accs.filter(a=>{ const e=eff(a); if(q&&!(a.kode+' '+a.nama).toLowerCase().includes(q)) return false; return P118.only==='guess'?e.guessed:P118.only==='none'?!e.pos:true; });
-  const nG=accs.filter(a=>eff(a).guessed).length, nN=accs.filter(a=>!eff(a).pos).length;
-  const opts=sel=>`<option value="">— belum dipetakan (operasi) —</option>`+Object.entries(Psak118.CAT).map(([c,l])=>`<optgroup label="${esc(l)}">${Psak118.POS.filter(p=>p.cat===c).map(p=>`<option value="${p.id}"${p.id===sel?' selected':''}>${esc(p.label)}</option>`).join('')}</optgroup>`).join('');
-  $('#rBody').innerHTML=`<div class="pkbar psbar">${P118.back&&P118.data?'<button class="ghost sm" id="pmBack">← Kembali ke laporan</button>':''}
-      <input type="search" id="pmQ" placeholder="Cari kode / nama akun…" value="${esc(P118.q)}">
-      <select id="pmOnly" style="width:auto;margin:0"><option value="">Semua akun L/R (${accs.length})</option><option value="guess"${P118.only==='guess'?' selected':''}>Masih tebakan (${nG})</option><option value="none"${P118.only==='none'?' selected':''}>Belum dipetakan (${nN})</option></select>
-      <button class="ghost sm" id="pmAccept">Terima semua tebakan</button>
-      <span class="info">Disimpan ${P118.src==='server'?'di server Zahir Insight (untuk semua pengguna database ini)':'di browser ini — pakai Ekspor/Impor untuk memindahkan'}</span>
-      <button class="ghost sm" id="pmExp">Ekspor</button><button class="ghost sm" id="pmImp">Impor</button><input type="file" id="pmFile" accept=".json" class="hide">
-      <button class="sm" id="pmSave">Simpan pemetaan</button></div>
-    <div class="prev" style="margin:-4px 0 10px">Akun berlabel <span class="psguess">tebakan</span> dipetakan otomatis dari klasifikasi dan namanya, dan belum disimpan. Akun yang tidak dipetakan masuk kategori operasi.</div>
-    <table class="gl ps pmap"><thead><tr><th>Kode</th><th>Nama akun</th><th class="r">Saldo s/d hari ini</th><th>Pos laporan laba rugi</th></tr></thead><tbody>${shown.map(a=>{ const e=eff(a);
-      return `<tr data-k="${esc(a.key)}" class="${e.guessed?'g':''}"><td class="nw">${esc(P118.fk(a.kode))}</td><td>${esc(a.nama)}${e.guessed?' <span class="psguess">tebakan</span>':''}</td><td class="r nw">${p118Fmt(a.v[0])}</td><td><select data-f="pos">${opts(e.pos)}</select></td></tr>`; }).join('')||'<tr><td colspan="4" class="empty">Tidak ada akun yang cocok.</td></tr>'}</tbody></table>`;
-  let t; $('#pmQ').oninput=()=>{ clearTimeout(t); t=setTimeout(()=>{ P118.q=$('#pmQ').value; p118MapDraw(); const el=$('#pmQ'); el.focus(); el.setSelectionRange(el.value.length,el.value.length); },250); };
-  $('#pmOnly').onchange=()=>{ P118.only=$('#pmOnly').value; p118MapDraw(); };
-  $('#rBody').querySelector('table.pmap').addEventListener('change',e=>{ const sel=e.target.closest('select[data-f]'); if(!sel) return; dr[sel.closest('tr').dataset.k]={pos:sel.value}; p118MapDraw(); });
-  $('#pmAccept').onclick=()=>{ for(const a of accs) if(!(dr[a.key]&&'pos' in dr[a.key])) dr[a.key]={pos:Psak118.guess(a)}; p118MapDraw(); toast('Tebakan diterima — klik "Simpan pemetaan" untuk menyimpan'); };
-  $('#pmSave').onclick=async()=>{ try{ await p118MapSave(dr); P118.draft=JSON.parse(JSON.stringify(P118.map.accounts)); toast('Pemetaan disimpan'); p118MapDraw(); }catch(err){ alert('Gagal menyimpan: '+err.message); } };
-  $('#pmExp').onclick=()=>{ const out={}; for(const [k,v] of Object.entries(dr)){ const a=accs.find(x=>x.key===k); out[k]={...v,nama:a?.nama||''}; }
-    const url=URL.createObjectURL(new Blob([JSON.stringify({v:1,company:st.company?.name||'',accounts:out},null,1)],{type:'application/json'})); const a=document.createElement('a'); a.href=url; a.download=`pemetaan_psak118_${(st.company?.name||'db').replace(/[^\w]+/g,'_')}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),10000); };
-  $('#pmImp').onclick=()=>$('#pmFile').click();
-  $('#pmFile').onchange=async()=>{ const f=$('#pmFile').files[0]; if(!f) return; try{ const j=JSON.parse(await f.text()); if(!j.accounts) throw new Error('berkas bukan pemetaan PSAK 118'); let n=0;
-    for(const [k,v] of Object.entries(j.accounts)) if(v&&(v.pos===''||Psak118.POS_BY[v.pos])){ dr[Psak118.norm(k)]={pos:v.pos||''}; n++; } p118MapDraw(); toast(`${n} akun diimpor — klik "Simpan pemetaan"`); }catch(err){ alert('Impor gagal: '+err.message); } };
-  if($('#pmBack')) $('#pmBack').onclick=()=>{ if(JSON.stringify(dr)!==JSON.stringify(P118.map.accounts||{})&&!confirm('Perubahan pemetaan belum disimpan. Kembali tanpa menyimpan?')) return; P118.back=false; p118Draw(); window.scrollTo(0,0); };
 }
 
 /* ---------- render buku besar ---------- */

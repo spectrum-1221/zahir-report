@@ -119,5 +119,5 @@
     ak_tl: { build: r => arusKas(r, true), title: 'LAPORAN ARUS KAS (METODE TIDAK LANGSUNG) - PSAK 109', per: 'range' },
     calk: { build: calk, title: 'CATATAN ATAS LAPORAN KEUANGAN - PSAK 109', per: 'all' },
   };
-  return { KINDS, build: (kind, rows) => KINDS[kind].build(rows || []), num };
+  return { KINDS, build: (kind, rows, ctx) => KINDS[kind].build(rows || [], ctx || {}), num };
 });

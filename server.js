@@ -417,7 +417,8 @@ const BUILTIN_CQ = { bb: ['bb_trx', 'bb_saldo_awal', 'buku_besar_faktur_invoice'
   tb_valas: ['bb_saldo_awal_valas', 'tb_laba_berjalan_valas'], jurnal_all: ['jurnal_all_trx'], jual_pilih: ['penjualan_pilih_faktur', 'penjualan_draft_faktur'] ,
   psak_neraca: ['neraca_psak109'], psak_aktivitas: ['laporan_aktivitas_psak109'], psak_perubahan_dana: ['perubahan_dana_psak109'],
   psak_ak_langsung: ['arus_kas_langsung'], psak_ak_tl: ['arus_kas_tidak_langsung'], psak_calk: ['catatan_atas_laporan_keuangan'] ,
-  psak118_lr: ['bb_saldo_awal'], psak118_map: ['bb_saldo_awal'] };
+  psak118_neraca: ['neraca_psak118'], psak118_lr: ['laba_rugi_psak118'], psak118_ekuitas: ['perubahan_ekuitas_psak118'],
+  psak118_arus: ['arus_kas_psak118'], psak118_calk: ['neraca_psak118', 'laba_rugi_psak118'] };
 let ACCESS_CACHE = { key: null, rules: null, error: null };
 // Urutan sumber aturan: env REPORT_ACCESS → data/access.json (server sendiri) → access.json di folder aplikasi (ikut repo/deploy, cocok untuk Vercel).
 const APP_ACCESS_FILE = path.join(__dirname, 'access.json');
@@ -455,23 +456,6 @@ function allowedCq(req, allow) {
   for (const r of loadReports(req)) if (allow.has(r.id)) for (const cq of [r.cq, r.cqTrx, r.cqSaldo]) if (cq) out.add(String(cq));
   return out;
 }
-// ---- pemetaan akun Laba Rugi PSAK 118 (akun → pos laporan), disimpan per database seperti desain laporan.
-// Versi online (Vercel) tidak punya penyimpanan tetap → 501, browser memakai localStorage + ekspor/impor berkas.
-const P118_IDS = ['psak118_lr', 'psak118_map'];
-const p118Base = req => { const b = rptBase(req); return path.join(path.dirname(b), path.basename(b).replace(/^reports/, 'psak118')); };
-const p118Allowed = req => { const a = allowedReports(req); return !a || P118_IDS.some(id => a.has(id)); };
-app.get('/psak118/map', (req, res) => {
-  if (!requireLogin(req, res)) return; if (IS_VERCEL) return res.status(501).json({ error: 'online' });
-  if (!p118Allowed(req)) return res.status(403).json({ error: 'Laporan PSAK 118 tidak diizinkan untuk database ini.' });
-  res.json(readStore(p118Base(req)) || { accounts: {} });
-});
-app.put('/psak118/map', (req, res) => {
-  if (!requireLogin(req, res)) return; if (IS_VERCEL) return res.status(501).json({ error: 'online' });
-  if (!p118Allowed(req)) return res.status(403).json({ error: 'Laporan PSAK 118 tidak diizinkan untuk database ini.' });
-  const b = req.body || {}; if (!b.accounts || typeof b.accounts !== 'object') return res.status(400).json({ error: 'Format pemetaan tidak valid' });
-  const accounts = {}; for (const [k, v] of Object.entries(b.accounts)) if (v && typeof v === 'object') accounts[String(k).slice(0, 64)] = { pos: String(v.pos || '').slice(0, 32) };
-  const doc = { v: 1, accounts, updated: new Date().toISOString() }; writeStore(p118Base(req), doc); res.json(doc);
-});
 app.get('/access', (req, res) => { const a = allowedReports(req); const { error, source } = accessRules(); res.json(a ? { all: false, reports: [...a], error, source } : { all: true, source, slug: req.get('x-zahir-slug') || null }); });
 
 app.get('/reports', (req, res) => { if (!requireLogin(req, res)) return; const a = allowedReports(req); const list = loadReports(req); res.json(a ? list.filter(r => a.has(r.id)) : list); });

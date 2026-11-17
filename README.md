@@ -302,21 +302,23 @@ Custom query ikut di `custom_queries/` dan dipasang lewat *Periksa custom query 
 Catatan dari isi query: neraca menggabungkan surplus ke akun `3201010100001` (akun itu harus ada dan punya transaksi agar neraca seimbang);
 saldo akhir dana (laporan aktivitas) dan saldo kas akhir (arus kas) dihitung dari seluruh riwayat tanpa batas tanggal akhir.
 
-## Laba Rugi PSAK 118 (v2.42)
-Kategori **PSAK 118** — laporan laba rugi format PSAK 118 (adopsi IFRS 18, berlaku 1 Januari 2027), susunan mengikuti contoh IAI:
-penjualan → laba bruto → beban operasi → **laba operasi** → investasi → **laba sebelum pendanaan dan pajak penghasilan** → pendanaan →
-laba sebelum pajak → pajak penghasilan → (operasi dihentikan) → **laba**. Kolom kedua = periode yang sama tahun sebelumnya.
+## Laporan keuangan PSAK 118 (v2.44)
+Kategori **PSAK 118** (adopsi IFRS 18, berlaku 1 Januari 2027) — seperti PSAK 109: tiap laporan dari custom query, tanpa pemetaan akun
+(kategori/pos ditentukan di query dari klasifikasi, subklasifikasi dan nama akun). Kolom pembanding = tanggal/periode yang sama tahun lalu.
 
-| id | Laporan |
-|---|---|
-| `psak118_lr` | Laporan Laba Rugi (PSAK 118) — filter periode, departemen, proyek, kode biaya; *Rincian per akun*; ekspor Excel |
-| `psak118_map` | Pemetaan Akun PSAK 118 — tiap akun pendapatan/beban → pos laporan |
+| id | Laporan | Custom query |
+|---|---|---|
+| `psak118_neraca` | Laporan Posisi Keuangan (per tanggal) — aset/liabilitas lancar & tidak lancar per subklasifikasi, saldo laba + laba tahun berjalan | `neraca_psak118` |
+| `psak118_lr` | Laporan Laba Rugi — kategori operasi/investasi/pendanaan/pajak/operasi dihentikan, subtotal wajib | `laba_rugi_psak118` |
+| `psak118_ekuitas` | Laporan Perubahan Ekuitas — saldo awal, laba periode, penambahan, pengurangan, saldo akhir | `perubahan_ekuitas_psak118` |
+| `psak118_arus` | Laporan Arus Kas — metode tidak langsung dimulai dari laba operasi; bunga/dividen diterima = investasi, bunga dibayar = pendanaan | `arus_kas_psak118` |
+| `psak118_calk` | Catatan atas Laporan Keuangan — rincian akun per pos, beban operasi berdasarkan sifat, catatan MPM | `neraca_psak118` + `laba_rugi_psak118` |
 
-- Data: custom query `bb_saldo_awal` (mutasi per akun), tidak perlu custom query baru.
-- Akun yang belum disimpan pemetaannya ditebak dari klasifikasi Zahir (4 penjualan, 5 beban pokok, 6 beban usaha) dan namanya
-  (mis. *beban bunga pinjaman/sewa* → pendanaan, *pendapatan bunga/dividen* → investasi, *entitas asosiasi* → investasi, *pajak penghasilan* → pajak).
-  Akun tanpa pos masuk kategori operasi (kategori sisa menurut PSAK 118).
-- Pemetaan disimpan di server (`data/psak118.<slug>`); versi online (Vercel) menyimpannya di browser — pakai *Ekspor*/*Impor*.
+- Semua laporan punya *Rincian per akun* dan ekspor Excel. Filter: tanggal/periode, departemen, proyek, kode biaya.
+- Arus kas & perubahan ekuitas memakai dua kunci filter tanggal: `mulai.$gte` (awal periode, hanya untuk mutasi) dan `date.$lte`
+  (tanggal akhir, juga untuk saldo kas/ekuitas akhir). Kas = akun dengan `is_cash = '1'`.
+- Laba tahun berjalan di neraca = laba rugi pada tahun transaksi terakhir s/d tanggal laporan; selebihnya saldo laba tahun-tahun sebelumnya.
+- Pemetaan akun PSAK 118 versi sebelumnya (v2.42) dihapus.
 
 ## Penjualan per Pelanggan (pilih faktur) — revisi v2.43
 - Sumber faktur approved: `/api/v2/reports/receivable_summary` (sama dengan laporan Umur Piutang Zahir Online), jadi nilai yang dipakai
