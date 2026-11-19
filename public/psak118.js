@@ -20,10 +20,14 @@
   const COLS = (h1, h2) => [{ k: 'kode', label: 'Kode' }, { k: 'label', label: 'Uraian' }, { k: 0, label: h1, num: true }, { k: 1, label: h2, num: true }];
   const colsAsof = c => COLS('Per ' + fmt(c.d2), 'Per ' + fmt(prev(c.d2)));
   const colsRange = c => COLS(`${fmt(c.d1)} s/d ${fmt(c.d2)}`, `${fmt(prev(c.d1))} s/d ${fmt(prev(c.d2))}`);
+  // akun bernilai 0 (custom query mengirim semua akun) disembunyikan kecuali opsi "Tampilkan saldo nol"
+  const nz = (r, fs = ['nilai_ini', 'nilai_lalu']) => fs.some(f => Math.abs(num(r[f])) >= 0.005);
+  const keep = (rows, c, test) => c.zero ? rows : rows.filter(test);
   const acc = (r, lvl) => ({ t: 'item', lvl, kode: str(r.akun_kode), label: str(r.akun_nama), vals: [num(r.nilai_ini), num(r.nilai_lalu)] });
 
   // Laporan Posisi Keuangan: ASET / LIABILITAS / EKUITAS → lancar / tidak lancar → pos (subklasifikasi) → akun
   function neraca(rows, c) {
+    rows = keep(rows, c, r => nz(r));
     const out = []; const det = !!c.detail; let tl = [0, 0], tot = {};
     for (const g of groups(rows, r => str(r.kelompok))) {
       out.push({ t: 'h1', lvl: 0, label: g.k });
@@ -48,6 +52,7 @@
 
   // Laporan Laba Rugi (urutan & subtotal dari custom query laba_rugi_psak118)
   function labaRugi(rows, c) {
+    rows = keep(rows, c, r => !['pos', 'akun'].includes(str(r.tipe)) || nz(r));
     const out = [];
     for (const r of rows) {
       const tp = str(r.tipe), v = [num(r.nilai_ini), num(r.nilai_lalu)];
@@ -61,6 +66,7 @@
   // Laporan Perubahan Ekuitas: per komponen ekuitas — saldo awal, laba periode, penambahan, pengurangan, saldo akhir
   function ekuitas(rows, c) {
     const F = ['saldo_awal', 'laba_periode', 'penambahan', 'pengurangan', 'saldo_akhir'];
+    rows = keep(rows, c, r => nz(r, F));
     const cols = [{ k: 'kode', label: 'Kode' }, { k: 'label', label: 'Komponen ekuitas' }, ...['Saldo awal', 'Laba (rugi) periode', 'Penambahan', 'Pengurangan', 'Saldo akhir'].map((l, i) => ({ k: i, label: l, num: true }))];
     const sum = xs => F.map(f => xs.reduce((s, r) => s + num(r[f]), 0));
     const out = [];
@@ -74,6 +80,7 @@
 
   // Laporan Arus Kas — metode tidak langsung dimulai dari laba (rugi) operasi (PSAK 118 / amandemen PSAK 207)
   function arusKas(rows, c) {
+    rows = keep(rows, c, r => num(r.section_urut) >= 9 || nz(r));
     const out = []; const kas = rows.find(r => r.kas_akhir_ini != null) || {};
     const data = rows.filter(r => num(r.section_urut) < 9);
     for (const s of groups(data, r => str(r.section))) {
@@ -107,7 +114,7 @@
     ['Utilitas', /(listrik|air|telepon|internet|utilitas)/],
   ];
   function calk(rows, c) {
-    const N = rows.filter(r => r.__q === 'n'), L = rows.filter(r => r.__q === 'l');
+    const N = keep(rows.filter(r => r.__q === 'n'), c, r => nz(r)), L = keep(rows.filter(r => r.__q === 'l'), c, r => !['pos', 'akun'].includes(str(r.tipe)) || nz(r));
     const out = []; let no = 0;
     out.push({ t: 'h1', lvl: 0, label: 'Dasar penyajian' }, { t: 'note', lvl: 1, label: 'Laporan keuangan disajikan sesuai PSAK 118 Penyajian dan Pengungkapan dalam Laporan Keuangan. Laba rugi dikelompokkan ke kategori operasi, investasi, pendanaan, pajak penghasilan, dan operasi yang dihentikan; beban operasi disajikan berdasarkan fungsi.' }, { t: 'blank' });
     out.push({ t: 'h1', lvl: 0, label: 'Rincian pos laporan posisi keuangan (per ' + fmt(c.d2) + ' dan ' + fmt(prev(c.d2)) + ')' });
@@ -140,11 +147,11 @@
   }
 
   const KINDS = {
-    neraca118: { build: neraca, title: 'LAPORAN POSISI KEUANGAN - PSAK 118', per: 'asof', cls: 'p118', toggle: true },
-    lr118: { build: labaRugi, title: 'LAPORAN LABA RUGI - PSAK 118', per: 'range', cls: 'p118', toggle: true },
-    ekuitas118: { build: ekuitas, title: 'LAPORAN PERUBAHAN EKUITAS - PSAK 118', per: 'range', cls: 'p118', toggle: true },
-    arus118: { build: arusKas, title: 'LAPORAN ARUS KAS (METODE TIDAK LANGSUNG) - PSAK 118', per: 'range', cls: 'p118', toggle: true },
-    calk118: { build: calk, title: 'CATATAN ATAS LAPORAN KEUANGAN - PSAK 118', per: 'range', cls: 'p118', toggle: true },
+    neraca118: { build: neraca, title: 'LAPORAN POSISI KEUANGAN - PSAK 118', per: 'asof', cls: 'p118', toggle: true, zero: true },
+    lr118: { build: labaRugi, title: 'LAPORAN LABA RUGI - PSAK 118', per: 'range', cls: 'p118', toggle: true, zero: true },
+    ekuitas118: { build: ekuitas, title: 'LAPORAN PERUBAHAN EKUITAS - PSAK 118', per: 'range', cls: 'p118', toggle: true, zero: true },
+    arus118: { build: arusKas, title: 'LAPORAN ARUS KAS (METODE TIDAK LANGSUNG) - PSAK 118', per: 'range', cls: 'p118', toggle: true, zero: true },
+    calk118: { build: calk, title: 'CATATAN ATAS LAPORAN KEUANGAN - PSAK 118', per: 'range', cls: 'p118', toggle: true, zero: true },
   };
   if (P109 && P109.KINDS) Object.assign(P109.KINDS, KINDS);
   return { KINDS, prev };

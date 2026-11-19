@@ -1946,7 +1946,7 @@ function pkShowReport(){
 const psakNum=v=>v==null||v===''?'':nfmt(2).format(+v);
 function psakPeriod(kind,d1,d2){ const per=Psak109.KINDS[kind].per; return per==='asof'?`Per Tanggal : ${fmtDate(d2)}`:per==='all'?'Disajikan secara kumulatif - seluruh periode':`Periode : ${fmtDate(d1)} s/d ${fmtDate(d2)}`; }
 async function renderPsak(rows,d1,d2){
-  const r=st.report, kind=r.kind, K=Psak109.KINDS[kind]; const R=Psak109.build(kind,rows,{d1,d2,detail:!!st.psakDetail});
+  const r=st.report, kind=r.kind, K=Psak109.KINDS[kind]; const R=Psak109.build(kind,rows,{d1,d2,detail:!!st.psakDetail,zero:!!(K.zero&&st.psakZero)});
   let fk=x=>x; try{ fk=tbRowOpts(await tbAccounts()).code; }catch{}
   for(const x of R.rows) if(x.kode) x.kodeF=fk(x.kode);
   st.psak={kind,R,d1,d2};
@@ -1961,9 +1961,10 @@ async function renderPsak(rows,d1,d2){
     if(x.t==='item'&&x.kode) return `<tr class="${cls(x)}"><td class="nw kd" ${pad(x)}>${esc(x.kodeF)}</td><td>${esc(x.label)}</td>${cols.filter(c=>c.num).map(c=>`<td class="r nw">${psakNum(val(x,c))}</td>`).join('')}</tr>`;
     return `<tr class="${cls(x)}"><td colspan="2" ${pad(x)}>${esc(x.label)}</td>${cols.filter(c=>c.num).map(c=>`<td class="r nw">${psakNum(val(x,c))}</td>`).join('')}</tr>`;
   }).join('');
-  const bar=K.toggle?`<div class="pkbar psbar"><label class="pk"><input type="checkbox" id="psDet"${st.psakDetail?' checked':''}> Rincian per akun</label></div>`:'';
+  const bar=K.toggle?`<div class="pkbar psbar"><label class="pk"><input type="checkbox" id="psDet"${st.psakDetail?' checked':''}> Rincian per akun</label>${K.zero?`<label class="pk"><input type="checkbox" id="psZero"${st.psakZero?' checked':''}> Tampilkan saldo nol</label>`:''}</div>`:'';
   $('#rBody').innerHTML=rows.length?bar+`<table class="gl ps${K.cls?' '+K.cls:''}"><colgroup><col style="width:150px"><col>${'<col style="width:170px">'.repeat(nc)}</colgroup><thead><tr>${cols.map(c=>`<th${c.num?' class="r"':''}>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`:'<div class="empty">Tidak ada data untuk filter ini.</div>';
-  if($('#psDet')) $('#psDet').onchange=()=>{ st.psakDetail=$('#psDet').checked; renderPsak(rows,d1,d2); };
+  if($('#psDet')) $('#psDet').onchange=()=>{ st.psakDetail=$('#psDet').checked; if(!st.psakDetail) st.psakZero=false; renderPsak(rows,d1,d2); };
+  if($('#psZero')) $('#psZero').onchange=()=>{ st.psakZero=$('#psZero').checked; if(st.psakZero) st.psakDetail=true; renderPsak(rows,d1,d2); };   // akun bersaldo nol hanya terlihat di rincian per akun
   $('#btnExpand').disabled=true; $('#btnPrint').onclick=()=>window.print(); $('#btnXlsx').onclick=()=>psakXlsx();
 }
 // Excel: angka asli (bisa dijumlah), judul grup & total tebal, indentasi mengikuti tingkat

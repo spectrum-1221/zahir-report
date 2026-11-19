@@ -315,6 +315,7 @@ Kategori **PSAK 118** (adopsi IFRS 18, berlaku 1 Januari 2027) — seperti PSAK 
 | `psak118_calk` | Catatan atas Laporan Keuangan — rincian akun per pos, beban operasi berdasarkan sifat, catatan MPM | `neraca_psak118` + `laba_rugi_psak118` |
 
 - Laba rugi: pos beban (beban pokok, penjualan, litbang, umum & adm., bunga, pajak) ditampilkan positif seperti laporan Zahir; subtotal = laba (rugi).
+- Opsi **Tampilkan saldo nol**: custom query mengirim semua akun (termasuk tanpa transaksi); akun bernilai 0 disembunyikan kecuali opsi ini dicentang (otomatis menyalakan rincian per akun).
 - Semua laporan punya *Rincian per akun* dan ekspor Excel. Filter: tanggal/periode, departemen, proyek, kode biaya.
 - Arus kas & perubahan ekuitas memakai dua kunci filter tanggal: `mulai.$gte` (awal periode, hanya untuk mutasi) dan `date.$lte`
   (tanggal akhir, juga untuk saldo kas/ekuitas akhir). Kas = akun dengan `is_cash = '1'`.
