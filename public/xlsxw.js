@@ -88,12 +88,12 @@ function writeRow(ex, r) {
     if (k === 'blank') { ws.addRow([]).commit(); return; }
     const row = ws.addRow(cols.map(c => { let v = vals[c]; if (c === 'tipe' && k === 'trx') v = (ttypes[v] || ttypes['~' + String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '')] || ({ manualjournal: 'GJ', generaljournal: 'GJ', journal: 'GJ' })[String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '')]) || v; return numSet.has(c) ? toNum(v) : (k === 'trx' || k === 'sa' ? cv(c, v ?? '') : (v ?? '')); }));
     fixDates(row);
-    cols.forEach((c, i) => { const cell = row.getCell(i + 1); if (numSet.has(c)) cell.numFmt = NUMFMT; if (k === 'sa') cell.fill = SA_FILL; if (k === 'tot') { cell.fill = TOT_FILL; cell.font = { bold: true }; } });
+    cols.forEach((c, i) => { const cell = row.getCell(i + 1); if (numSet.has(c)) cell.numFmt = NUMFMT; if (k === 'sa') cell.fill = SA_FILL; if (k === 'neg') cell.font = { color: { argb: 'FFC62828' } }; if (k === 'tot') { cell.fill = TOT_FILL; cell.font = { bold: true }; } });
     row.commit();
   } else {
     const row = ws.addRow(cols.map(c => numSet.has(c) ? toNum(vals[c]) : cv(c, vals[c] ?? '')));
     fixDates(row);
-    cols.forEach((c, i) => { if (numSet.has(c)) row.getCell(i + 1).numFmt = ex.fmtOf(c); }); row.commit();
+    cols.forEach((c, i) => { const cell = row.getCell(i + 1); if (numSet.has(c)) cell.numFmt = ex.fmtOf(c); if (k === 'neg') cell.font = { color: { argb: 'FFC62828' } }; }); row.commit();   // neg: baris retur (merah)
   }
   ex.rows++;
 }

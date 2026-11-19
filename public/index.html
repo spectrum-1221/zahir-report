@@ -1584,7 +1584,7 @@ async function exportXlsx({ rows, cols, labels, numeric, kind, fileName, period,
   const hdr = { 'Content-Type':'application/json', 'x-zahir-token': st.token };
   const call = async (url, body) => { const r = await fetch(url, { method:'POST', headers: hdr, body: JSON.stringify(body) }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status); return j; };
   const packOf = r => { const o=rowOf?rowOf(r):r; if(kind==='ledger'){ const k=rowKind(o); if(k==='title') return ['title',o.kode_akun,o.nama_akun]; if(k==='head'||k==='blank') return [k]; return [k,...cols.map(c=>o[c]??null)]; }
-    const k=o.__kind; if(k==='gtitle') return ['gtitle',o.__label,o.__lvl||0]; if(k==='ghead'||k==='blank') return [k]; if(k==='gtot') return ['gtot',o.__label,...cols.map(c=>o[c]??null)]; return [o.__k==='jh'?'bold':(o.__k==='jb'||o.__tot)?'tot':'trx',...cols.map(c=>o[c]??null)]; };
+    const k=o.__kind; if(k==='gtitle') return ['gtitle',o.__label,o.__lvl||0]; if(k==='ghead'||k==='blank') return [k]; if(k==='gtot') return ['gtot',o.__label,...cols.map(c=>o[c]??null)]; return [o.__k==='jh'?'bold':(o.__k==='jb'||o.__tot)?'tot':o.__neg?'neg':'trx',...cols.map(c=>o[c]??null)]; };
   if (st.online) return exportXlsxBrowser({ rows, cols, labels, numeric, kind, fileName, period, rowOf, grouped, groups, heads, dec, widths, pack: packOf, sub, note });
   ov.show('Mengekspor ke Excel', `${rows.length.toLocaleString('id-ID')} baris`); ov.set(2, 'Menyiapkan file…');
   try {
@@ -1592,7 +1592,7 @@ async function exportXlsx({ rows, cols, labels, numeric, kind, fileName, period,
     const CH = 20000;
     // format ringkas: [jenisBaris, nilai kolom...]; baris judul buku besar: ['title', kode, nama]
     const pack = r => { const o=rowOf?rowOf(r):r; if(kind==='ledger'){ const k=rowKind(o); if(k==='title') return ['title',o.kode_akun,o.nama_akun]; if(k==='head'||k==='blank') return [k]; return [k,...cols.map(c=>o[c]??null)]; }
-    const k=o.__kind; if(k==='gtitle') return ['gtitle',o.__label,o.__lvl||0]; if(k==='ghead'||k==='blank') return [k]; if(k==='gtot') return ['gtot',o.__label,...cols.map(c=>o[c]??null)]; return [o.__k==='jh'?'bold':(o.__k==='jb'||o.__tot)?'tot':'trx',...cols.map(c=>o[c]??null)]; };
+    const k=o.__kind; if(k==='gtitle') return ['gtitle',o.__label,o.__lvl||0]; if(k==='ghead'||k==='blank') return [k]; if(k==='gtot') return ['gtot',o.__label,...cols.map(c=>o[c]??null)]; return [o.__k==='jh'?'bold':(o.__k==='jb'||o.__tot)?'tot':o.__neg?'neg':'trx',...cols.map(c=>o[c]??null)]; };
     for (let i = 0; i < rows.length; i += CH) {
       const part=new Array(Math.min(CH,rows.length-i)); for(let j=0;j<part.length;j++) part[j]=pack(rows[i+j]);
       await call(`/export/${id}/rows`, { packed: part });
@@ -1934,7 +1934,7 @@ function pkShowReport(){
   const rowHtml=r=>{
     if(r.__kind==='blank') return `<tr class="sb">${cols.map(()=>'<td></td>').join('')}</tr>`;
     const td=c=>numeric.has(c)?`<td class="r">${r[c]==null?'':pkNum(r[c],Number.isInteger(+r[c])?0:2)}</td>`:`<td class="c">${c==='tanggal'?pkDateShort(r[c]):esc(r[c]??'')}</td>`;
-    return `<tr class="${r.__tot?'tot':'trx'}${!r.__tot&&+r.sub_jlh<0?' neg':''}">${cols.map(td).join('')}</tr>`;
+    return `<tr class="${r.__tot?'tot':'trx'}${!r.__tot&&(r.__neg||+r.sub_jlh<0)?' neg':''}">${cols.map(td).join('')}</tr>`;
   };
   R={rows,cols,labels,numeric,ncol:cols.length,rowHtml,bound:R.bound};
   vStart();

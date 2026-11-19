@@ -671,7 +671,8 @@
       (grouped ? coll(a.dept, b.dept) || coll(a.klasifikasi, b.klasifikasi) : 0) || coll(a.nama_pelanggan, b.nama_pelanggan) || coll(a.contact_id, b.contact_id)
       || d10(a.tanggal).localeCompare(d10(b.tanggal)) || coll(a.no_faktur, b.no_faktur));
     const zero = () => ({ u0: 0, u30: 0, u60: 0, u90: 0, saldo: 0, total: 0, bayar: 0 });
-    const retOf = r => Array.isArray(r.retur) ? r.retur : [];   // retur penjualan per faktur (custom query retur_faktur)
+    const retOf = r => Array.isArray(r.retur) ? r.retur : [];
+    const rAmt = t => Math.abs(num(t.total));   // subsider.total retur bisa bertanda minus   // retur penjualan per faktur (custom query retur_faktur)
     const add = (t, x) => { for (const k of PICK_NUM) t[k] += x[k] || 0; };
     const isOpen = r => r.status === 'draft' || Math.abs(num(r.saldo)) >= 0.005;   // saldo minus (lebih bayar/retur melebihi sisa) tetap tampil, sama seperti Umur Piutang Zahir
     const ST = { draft: 'Draft', pending: 'Menunggu persetujuan', waiting_approval: 'Menunggu persetujuan', void: 'Void', voided: 'Void', canceled: 'Batal', cancelled: 'Batal', closed: 'Ditutup', rejected: 'Ditolak' };
@@ -690,13 +691,13 @@
             const cid = String(src[i].contact_id ?? src[i].nama_pelanggan); const head = { __k: 'jh', __cust: dept + '|' + cid, __ids: [], nama: [src[i].nama_pelanggan, src[i].kode_pelanggan].filter(Boolean).join(' | ') };
             out.push(head); const ct = zero();
             while (i < src.length && (src[i].dept || '') === dept && (src[i].klasifikasi || '') === kls && String(src[i].contact_id ?? src[i].nama_pelanggan) === cid) {
-              const r = src[i++]; const rt = retOf(r); const rtot = rt.reduce((a, t) => a + num(t.total), 0);
+              const r = src[i++]; const rt = retOf(r); const rtot = rt.reduce((a, t) => a + rAmt(t), 0);
               // faktur yang diretur: tampil sebelum retur (sisa + retur), lalu baris retur bernilai minus — jumlahnya tetap = sisa piutang
               const saldo = num(r.saldo) + rtot; const b = bucket(ageDays(r.tanggal, asOf));
               const x = { u0: 0, u30: 0, u60: 0, u90: 0, saldo, total: num(r.total), bayar: Math.max(0, num(r.bayar) - rtot) }; x[b] = saldo;
               out.push({ __k: 'trx', __tid: key(r), __cust: head.__cust, __draft: r.status === 'draft', nama: '', tanggal: d10(r.tanggal), no_faktur: r.no_faktur, tgl_jatuh_tempo: d10(r.jatuh_tempo) || null, ket: rt.length ? 'Ada retur' : ketOf(r), ...x });
               head.__ids.push(key(r)); add(ct, x);
-              for (const t of rt) { const y = { u0: 0, u30: 0, u60: 0, u90: 0, saldo: -num(t.total), total: null, bayar: null }; y[b] = y.saldo;
+              for (const t of rt) { const y = { u0: 0, u30: 0, u60: 0, u90: 0, saldo: -rAmt(t), total: null, bayar: null }; y[b] = y.saldo;
                 out.push({ __k: 'trx', __ret: key(r), __cust: head.__cust, nama: '', tanggal: d10(t.tanggal), no_faktur: t.no_retur, tgl_jatuh_tempo: null, ket: 'Retur', ...y });
                 ct.saldo += y.saldo; ct[b] += y.saldo; }
             }
@@ -726,9 +727,9 @@
         const cid = String(src[i].contact_id ?? src[i].nama_pelanggan); const start = i; let sum = 0; no++;
         while (i < src.length && String(src[i].contact_id ?? src[i].nama_pelanggan) === cid) i++;
         const n = i - start;
-        for (let j = start; j < i; j++) { const r = src[j]; const rt = retOf(r); const v = num(r.saldo) + rt.reduce((a, t) => a + num(t.total), 0); sum += v;
-          out.push({ no: j === start ? no : null, nama_toko: j === start ? r.nama_pelanggan : '', no_faktur: r.no_faktur + (r.status === 'draft' ? ' (draft)' : ''), __no: r.no_faktur, tanggal: d10(r.tanggal), sub_jlh: v, ttl_jlh: null, __cust: cid });
-          for (const t of rt) { const tv = -num(t.total); sum += tv; out.push({ no: null, nama_toko: '', no_faktur: t.no_retur, __ret: true, tanggal: d10(t.tanggal), sub_jlh: tv, ttl_jlh: null, __cust: cid }); } }
+        for (let j = start; j < i; j++) { const r = src[j]; const rt = retOf(r); const v = num(r.saldo) + rt.reduce((a, t) => a + rAmt(t), 0); sum += v;
+          out.push({ no: j === start ? no : null, nama_toko: j === start ? r.nama_pelanggan : '', no_faktur: r.no_faktur + (r.status === 'draft' ? ' (draft)' : ''), __no: r.no_faktur, tanggal: d10(r.tanggal), sub_jlh: v, ttl_jlh: null, __cust: cid, __neg: v < 0 });
+          for (const t of rt) { const tv = -rAmt(t); sum += tv; out.push({ no: null, nama_toko: '', no_faktur: t.no_retur, __ret: true, __neg: true, tanggal: d10(t.tanggal), sub_jlh: tv, ttl_jlh: null, __cust: cid }); } }
         if (n > 1 || out[out.length - 1].__ret) out[out.length - 1].ttl_jlh = sum;
         grand += sum; out.push({ __kind: 'blank' });
       }
