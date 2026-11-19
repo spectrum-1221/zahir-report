@@ -296,6 +296,7 @@ table.gl.pk tr.trx.draft td{background:#fff8e6}
 .pkket{display:inline-block;font-size:11px;padding:0 6px;border-radius:4px;background:#e8f1fb;color:#1f5f99;border:1px solid #c5dbf2}
 .pkket.d{background:#fff1c2;color:#7a5a00;border-color:#f0d27a}
 table.gl.sr tr.neg td{color:#c62828}
+table.gl.pk tr.ret td{color:#c62828}
 .pkbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#f6f9fc;border:1px solid #dfe6ee;border-radius:8px;padding:8px 10px;margin:0 0 12px}
 .pkbar .info{margin-left:auto;font-size:12.5px;color:var(--ink)}
 .pkbar .info b{color:var(--brand)}
@@ -1523,6 +1524,10 @@ async function runReport({force=false}={}){
       await Promise.all(Array.from({length:Math.min(6,Math.max(0,pages-1))},worker));
       for(let p=1;p<=pages;p++) take(res[p]);
       await draftJob; rows.push(...drafts);
+      // retur per faktur (subsider: parent = faktur, child = retur kelompok 32) s/d tanggal akhir → ditampilkan di bawah fakturnya
+      try{ const rt=new Map(); await fetchChunk({'date.$lte':d2,...(F.base.contact_id?{contact_id:F.base.contact_id}:{})},()=>{},'retur_faktur',null,x=>{ const k=String(x.parent_id); if(!rt.has(k)) rt.set(k,[]); rt.get(k).push(x); });
+        for(const x of rows) if(rt.has(String(x.transaction_id))) x.retur=rt.get(String(x.transaction_id)); }
+      catch(err){ toast('Retur tidak terambil: '+err.message+(/not found|404|custom query/i.test(err.message)?' — klik "Periksa custom query bawaan" di daftar laporan.':''),'err'); }
       PK.allOpen=allOpen; PK.sales=FV.salesman_id?.name?.()||'';
     }
     else if(mode==='pick'){
@@ -1893,6 +1898,8 @@ function pkDrawPick(){
     if(r.__kind==='blank') return `<tr class="blank"><td colspan="${n+1}"></td></tr>`;
     if(r.__k==='jh'){ const k=r.__ids.filter(id=>PK.sel.has(id)).length; return `<tr class="jh"><td colspan="${n}">${esc(r.nama)}</td><td class="ck"><input type="checkbox" data-cust="${esc(r.__cust)}" title="Centang semua faktur pelanggan ini"${k&&k===r.__ids.length?' checked':''}${k&&k<r.__ids.length?' class="part"':''}></td></tr>`; }
     if(r.__tid){ const on=PK.sel.has(r.__tid); return `<tr class="trx${on?' on':''}${r.__draft?' draft':''}${r.ket&&!r.__draft?' part':''}" data-tid="${esc(r.__tid)}">${cols.map(c=>cell(r,c)).join('')}<td class="ck"><input type="checkbox" data-tid="${esc(r.__tid)}"${on?' checked':''}></td></tr>`; }
+    // baris retur: ikut tercentang bersama fakturnya
+    if(r.__ret){ const on=PK.sel.has(r.__ret); return `<tr class="trx ret${on?' on':''}" data-ret="${esc(r.__ret)}">${cols.map(c=>cell(r,c)).join('')}<td class="ck"><input type="checkbox" disabled title="Ikut faktur"${on?' checked':''}></td></tr>`; }
     return `<tr class="tot${r.__gt||r.__grand?' gt':''}">${cols.map(c=>cell(r,c)).join('')}<td class="ck"></td></tr>`;
   };
   R={rows,cols,labels,numeric,ncol:n+1,rowHtml,bound:R.bound};
@@ -1905,6 +1912,7 @@ function pkDrawPick(){
 function pkSync(){
   const tb=$('#pkTbl'); if(!tb) return;
   tb.querySelectorAll('tr.trx[data-tid]').forEach(tr=>{ const on=PK.sel.has(tr.dataset.tid); tr.classList.toggle('on',on); const c=tr.querySelector('input[data-tid]'); if(c) c.checked=on; });
+  tb.querySelectorAll('tr.trx[data-ret]').forEach(tr=>{ const on=PK.sel.has(tr.dataset.ret); tr.classList.toggle('on',on); const c=tr.querySelector('input'); if(c) c.checked=on; });
   tb.querySelectorAll('input[data-cust]').forEach(c=>{ const h=R.rows.find(r=>r.__k==='jh'&&r.__cust===c.dataset.cust); if(!h) return; const k=h.__ids.filter(id=>PK.sel.has(id)).length; c.checked=k>0&&k===h.__ids.length; c.classList.toggle('part',k>0&&k<h.__ids.length); });
   pkInfo();
 }

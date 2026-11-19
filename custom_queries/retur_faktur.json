@@ -1,0 +1,17 @@
+{
+  "reason": "Zahir Insight - retur penjualan per faktur (subsider parent = faktur, child = retur, kelompok 32) untuk Daftar Tagihan Jatuh Tempo",
+  "name": "retur_faktur",
+  "field": {
+    "parent_id": "parent_id",
+    "no_faktur": "no_faktur",
+    "retur_id": "retur_id",
+    "no_retur": "no_retur",
+    "tanggal": "d",
+    "total": "total",
+    "date": "G1.D",
+    "contact_id": "G1.CONTACT_ID",
+    "parent": "G1.PARENT_ID"
+  },
+  "query": "SELECT G1.parent_id, G1.no_faktur, G1.retur_id, G1.no_retur, G1.d AS tanggal, G1.contact_id, G1.total FROM (\n  SELECT\n    s.parent_id                         AS parent_id,      -- faktur penjualan (g_jurnal.id)\n    inv.nojurnal                        AS no_faktur,\n    r.id                                AS retur_id,\n    r.nojurnal                          AS no_retur,\n    r.tanggal::date                     AS d,\n    inv.contact_id                      AS contact_id,\n    COALESCE(s.total, 0)::numeric(18,2) AS total\n  FROM subsider s\n  JOIN g_jurnal r   ON r.id = s.child_id AND r.kelompok = 32 AND r.status = 'approved'   -- retur penjualan\n  JOIN g_jurnal inv ON inv.id = s.parent_id\n) G1\nWHERE 1=1 {andWhere}\nORDER BY G1.parent_id, G1.d, G1.no_retur {andOrder} {limit}",
+  "query_count": "SELECT COUNT(*) FROM (\nSELECT * FROM (\n  SELECT\n    s.parent_id                         AS parent_id,      -- faktur penjualan (g_jurnal.id)\n    inv.nojurnal                        AS no_faktur,\n    r.id                                AS retur_id,\n    r.nojurnal                          AS no_retur,\n    r.tanggal::date                     AS d,\n    inv.contact_id                      AS contact_id,\n    COALESCE(s.total, 0)::numeric(18,2) AS total\n  FROM subsider s\n  JOIN g_jurnal r   ON r.id = s.child_id AND r.kelompok = 32 AND r.status = 'approved'   -- retur penjualan\n  JOIN g_jurnal inv ON inv.id = s.parent_id\n) G1\nWHERE 1=1 {andWhere}\n) t"
+}

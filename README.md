@@ -337,3 +337,4 @@ Kategori **PSAK 118** (adopsi IFRS 18, berlaku 1 Januari 2027) — seperti PSAK 
 - Pilihan filter **Pelanggan** = `cardfile.is_customer = 1`, **Salesman** = `cardfile.is_employee = 1` (custom query baru `kontak_filter`, dimuat sekali lalu disaring di browser).
 - Baris bersaldo minus dari Umur Piutang (retur / lebih bayar) tampil dengan nomornya, label *Retur*, merah di laporan.
 - Halaman `receivable_summary` diambil paralel (6 sekaligus) bersamaan dengan faktur draft → laporan lebih cepat.
+- Retur penjualan per faktur (custom query `retur_faktur`: subsider parent = faktur, child = retur kelompok 32, s/d tanggal akhir): faktur tampil sebelum retur, nomor retur tampil di bawahnya bernilai minus (merah) dan ikut tercentang bersama fakturnya; jumlahnya tetap = sisa piutang.
