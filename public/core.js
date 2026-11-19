@@ -674,7 +674,7 @@
     const add = (t, x) => { for (const k of PICK_NUM) t[k] += x[k] || 0; };
     const isOpen = r => r.status === 'draft' || Math.abs(num(r.saldo)) >= 0.005;   // saldo minus (lebih bayar/retur melebihi sisa) tetap tampil, sama seperti Umur Piutang Zahir
     const ST = { draft: 'Draft', pending: 'Menunggu persetujuan', waiting_approval: 'Menunggu persetujuan', void: 'Void', voided: 'Void', canceled: 'Batal', cancelled: 'Batal', closed: 'Ditutup', rejected: 'Ditolak' };
-    const ketOf = r => r.status && r.status !== 'approved' ? (ST[r.status] || 'Status: ' + r.status) : num(r.saldo) <= -0.005 ? 'Lebih bayar' : num(r.bayar) >= 0.005 ? 'Dicicil/retur' : '';
+    const ketOf = r => r.status && r.status !== 'approved' ? (ST[r.status] || 'Status: ' + r.status) : num(r.saldo) <= -0.005 ? (/^s?r|retur|return/i.test(String(r.no_faktur || '') + ' ' + String(r.keterangan || '')) ? 'Retur' : 'Retur / lebih bayar') : num(r.bayar) >= 0.005 ? 'Dicicil/retur' : '';
     function pickRows(list, { asOf, q = '' } = {}) {
       const s = String(q || '').trim().toLowerCase();
       const src = sortRows(list.filter(r => isOpen(r) && (!s || [r.no_faktur, r.nama_pelanggan, r.kode_pelanggan, r.keterangan].some(v => String(v || '').toLowerCase().includes(s)))), true);

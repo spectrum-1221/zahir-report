@@ -1,0 +1,13 @@
+{
+  "reason": "Zahir Insight - daftar kontak untuk filter Pelanggan (is_customer = 1) dan Salesman (is_employee = 1)",
+  "name": "kontak_filter",
+  "field": {
+    "id": "id",
+    "code": "code",
+    "name": "name",
+    "is_customer": "G1.IS_CUSTOMER",
+    "is_employee": "G1.IS_EMPLOYEE"
+  },
+  "query": "SELECT * FROM (\n  SELECT c.contact_id AS id, COALESCE(c.kode, '') AS code, COALESCE(c.perusahaan, '') AS name,\n         c.is_customer, c.is_employee\n  FROM cardfile c\n) G1\nWHERE 1=1 {andWhere}\nORDER BY G1.NAME, G1.CODE {andOrder} {limit}",
+  "query_count": "SELECT COUNT(*) FROM (\nSELECT * FROM (\n  SELECT c.contact_id AS id, COALESCE(c.kode, '') AS code, COALESCE(c.perusahaan, '') AS name,\n         c.is_customer, c.is_employee\n  FROM cardfile c\n) G1\nWHERE 1=1 {andWhere}\n) t"
+}

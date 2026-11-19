@@ -331,3 +331,9 @@ Kategori **PSAK 118** (adopsi IFRS 18, berlaku 1 Januari 2027) — seperti PSAK 
 - Faktur bersaldo minus (lebih bayar / retur melebihi sisa) tetap ditampilkan (label *Lebih bayar*) seperti Umur Piutang Zahir; hanya saldo 0 yang dianggap lunas.
 - Di bawah GRAND TOTAL ada pemisah *Faktur draft* dan *Piutang approved* — angka approved inilah yang sama dengan Umur Piutang Zahir (yang tidak memuat draft).
 - Pengelompokan: departemen → klasifikasi pelanggan → pelanggan. Laporan hasil centang: SUB JLH = sisa piutang.
+
+### Revisi v2.44.2 — Daftar Tagihan Jatuh Tempo
+- Laporan hasil centang berjudul **DAFTAR TAGIHAN JATUH TEMPO**, periode tampil "dd s/d dd"; bila difilter salesman, nama salesman tampil di kepala laporan & Excel.
+- Pilihan filter **Pelanggan** = `cardfile.is_customer = 1`, **Salesman** = `cardfile.is_employee = 1` (custom query baru `kontak_filter`, dimuat sekali lalu disaring di browser).
+- Baris bersaldo minus dari Umur Piutang (retur / lebih bayar) tampil dengan nomornya, label *Retur*, merah di laporan.
+- Halaman `receivable_summary` diambil paralel (6 sekaligus) bersamaan dengan faktur draft → laporan lebih cepat.

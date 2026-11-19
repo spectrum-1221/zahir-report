@@ -36,11 +36,13 @@ function writeHeads(ws, heads, ncol) {
   for (const [r1, c1, r2, c2] of merges) ws.mergeCells(first + r1, c1, first + r2, c2);   // gabung sebelum commit (writer streaming)
   added.forEach(r => r.commit());
 }
-  function setupSheet(ws, { kind, grouped, title, sub, period, cols, labels, numeric, widths, ttypes, groups, heads, dec }) {
+  function setupSheet(ws, { kind, grouped, title, sub, period, note, cols, labels, numeric, widths, ttypes, groups, heads, dec }) {
   ws.columns = cols.map(c => ({ key: c, width: (widths && widths[c]) || 14 }));
   const line = (v, font, color) => { const r = ws.addRow([v]); r.getCell(1).font = font; r.commit(); };
   line(title || '', { bold: true, size: 14 }); line(sub || '', { bold: true, size: 12, color: { argb: 'FF0E7FB8' } });
-  if (period) line(period, { color: { argb: 'FFC62828' } }); ws.addRow([]).commit();
+  if (period) line(period, { color: { argb: 'FFC62828' } });
+  if (note) line(note, { bold: true });   // mis. 'Salesman : NAMA'
+  ws.addRow([]).commit();
   const numSet = new Set(numeric || []);
   // groups (buku besar valas): [{label, span}] → baris judul kelompok (NILAI USD / NILAI IDR) di atas baris label, sel digabung
   const G = Array.isArray(groups) && groups.length && groups.reduce((a, g) => a + (g.span || 1), 0) === cols.length ? groups : null;
