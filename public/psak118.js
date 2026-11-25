@@ -93,12 +93,12 @@
           if (c.detail) for (const r of u.rows) out.push(acc(r, lv + 1));
         }
       }
-      out.push({ t: 'sub0', lvl: 0, label: 'Kas bersih dari (untuk) ' + lc(s.k.replace(/^ARUS KAS DARI /, '').toLowerCase()), vals: two(s.rows) }, { t: 'blank' });
+      out.push({ t: 'sub0', lvl: 0, label: 'Kas Bersih dari (untuk) ' + s.k.replace(/^ARUS KAS DARI /, '').toLowerCase().replace(/\b\w/g, ch => ch.toUpperCase()), vals: two(s.rows) }, { t: 'blank' });
     }
     const net = two(data), akhir = [num(kas.kas_akhir_ini), num(kas.kas_akhir_lalu)];
-    out.push({ t: 'tot', lvl: 0, label: 'Kenaikan (penurunan) bersih kas dan setara kas', vals: net },
-      { t: 'item', lvl: 0, label: 'Kas dan setara kas awal periode', vals: akhir.map((x, i) => x - net[i]), b: true },
-      { t: 'gt', lvl: 0, label: 'Kas dan setara kas akhir periode', vals: akhir });
+    out.push({ t: 'tot', lvl: 0, label: 'Kenaikan (Penurunan) Bersih Kas dan Setara Kas', vals: net },
+      { t: 'item', lvl: 0, label: 'Kas dan Setara Kas Awal Periode', vals: akhir.map((x, i) => Math.round((x - net[i]) * 100) / 100 || 0), b: true },
+      { t: 'gt', lvl: 0, label: 'Kas dan Setara Kas Akhir Periode', vals: akhir });
     return { cols: colsRange(c), rows: out };
   }
 
@@ -150,7 +150,7 @@
     neraca118: { build: neraca, title: 'LAPORAN POSISI KEUANGAN - PSAK 118', per: 'asof', cls: 'p118', toggle: true, zero: true },
     lr118: { build: labaRugi, title: 'LAPORAN LABA RUGI', per: 'range', cls: 'p118', toggle: true, zero: true },
     ekuitas118: { build: ekuitas, title: 'LAPORAN PERUBAHAN EKUITAS - PSAK 118', per: 'range', cls: 'p118', toggle: true, zero: true },
-    arus118: { build: arusKas, title: 'LAPORAN ARUS KAS (METODE TIDAK LANGSUNG) - PSAK 118', per: 'range', cls: 'p118', toggle: true, zero: true },
+    arus118: { build: arusKas, title: 'LAPORAN ARUS KAS', per: 'range', cls: 'p118', toggle: true, zero: true },
     calk118: { build: calk, title: 'CATATAN ATAS LAPORAN KEUANGAN - PSAK 118', per: 'range', cls: 'p118', toggle: true, zero: true },
   };
   if (P109 && P109.KINDS) Object.assign(P109.KINDS, KINDS);
