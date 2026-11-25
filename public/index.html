@@ -213,7 +213,7 @@ button.sm{padding:7px 12px;font-size:12.5px}
 
 .paper{background:#fff;border:1px solid var(--line);border-radius:10px;padding:22px 20px 30px;min-height:200px;overflow-x:auto}
 .rpt-head{text-align:center;margin:4px 0 16px}
-.rpt-head h2{margin:0;font-size:20px}.rpt-head .t{color:var(--brand);font-size:15px}.rpt-head .p{color:var(--bad);font-size:13px}
+.rpt-head h2{margin:0;font-size:20px}#rCo{cursor:text;border-radius:4px;outline:none}#rCo:hover{background:rgba(0,0,0,.05)}#rCo:focus{background:rgba(0,0,0,.06);box-shadow:0 0 0 2px var(--brand)}@media print{#rCo:hover,#rCo:focus{background:none;box-shadow:none}}.rpt-head .t{color:var(--brand);font-size:15px}.rpt-head .p{color:var(--bad);font-size:13px}
 table.gl{border-collapse:collapse;font-size:11.5px;table-layout:fixed;width:100%;min-width:1150px}
 table.gl th{background:var(--head);color:#fff;text-align:left;padding:6px 6px;font-weight:500;white-space:normal;line-height:1.15;vertical-align:middle}
 table.gl td{padding:5px 6px;border-bottom:1px solid #eef1f5;vertical-align:top;overflow-wrap:anywhere;word-break:break-word}
@@ -601,7 +601,7 @@ table.gl.sr tr.sb td{height:20px}
     </div></div>
     <div id="rpt" class="paper">
       <div class="pbar hide" id="rBar"><i></i></div>
-      <div class="rpt-head"><h2 id="rCo"></h2><div class="t" id="rTitle"></div><div class="p" id="rPer"></div><div class="fsum" id="rFil"></div></div>
+      <div class="rpt-head"><h2 id="rCo" contenteditable="plaintext-only" spellcheck="false" title="Klik untuk mengganti nama perusahaan di laporan (kosongkan untuk kembali ke nama dari Zahir)"></h2><div class="t" id="rTitle"></div><div class="p" id="rPer"></div><div class="fsum" id="rFil"></div></div>
       <div id="rBody"></div>
       <div class="more hide" id="more"></div>
     </div>
@@ -789,6 +789,15 @@ async function openCompany(c){
   ov.set(55,''); await useDatabase();
 }
 $('#btnManualDb').onclick=async()=>{ const v=$('#manualDb').value.trim().replace(/^https?:\/\//i,'').replace(/\/+$/,''); if(!v) return; ov.show('Membuka database',v); st.company={id:null,name:v}; st.slug=v; st.dataBase=st.server; await useDatabase(); };
+// nama perusahaan di laporan bisa diganti (klik judul laporan); disimpan per database di browser ini
+function coKey(){ return 'zlv.coName.'+(st.slug||st.company?.id||''); }
+function coApplyOverride(){ if(!st.company) return; if(st.company.orig==null) st.company.orig=st.company.name; let o=null; try{ o=localStorage.getItem(coKey()); }catch{} st.company.name=o||st.company.orig; }
+function coSetOverride(v){ v=(v||'').replace(/\s+/g,' ').trim(); if(!st.company) return; if(st.company.orig==null) st.company.orig=st.company.name;
+  try{ if(v&&v!==st.company.orig) localStorage.setItem(coKey(),v); else localStorage.removeItem(coKey()); }catch{}
+  coApplyOverride(); S.set('sess',{...S.get('sess'),company:st.company}); $('#rCo').textContent=st.company.name; $('#catCo').textContent=st.company.name;
+  $('#whoami').innerHTML=`<b>${esc(st.company.name)}</b> · ${esc(st.slug||'')}`; }
+$('#rCo').addEventListener('blur',()=>coSetOverride($('#rCo').textContent));
+$('#rCo').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('#rCo').blur(); } if(e.key==='Escape'){ $('#rCo').textContent=st.company?.name||''; $('#rCo').blur(); } });
 async function useDatabase(){
   const probe=()=>zget('/api/v2/accounts?per_page=1');
   try{ await probe(); }
@@ -797,6 +806,7 @@ async function useDatabase(){
     else { ov.hide(); $('#dbErr').textContent='Tidak bisa mengakses database ini: '+err.message; return; }
   }
   $('#dbErr').textContent=''; ov.set(100,''); ov.hide();
+  coApplyOverride();
   S.set('sess',{...S.get('sess'),token:st.token,dataBase:st.dataBase,slug:st.slug,company:st.company});
   $('#whoami').innerHTML=`<b>${esc(st.company.name)}</b> · ${esc(st.slug||'')}`;
   st.lookupsLoaded=false; LOOK_CLEAR(); $('#rpt').classList.add('hide'); $('#status').textContent='';

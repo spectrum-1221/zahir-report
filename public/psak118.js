@@ -148,7 +148,7 @@
 
   const KINDS = {
     neraca118: { build: neraca, title: 'LAPORAN POSISI KEUANGAN - PSAK 118', per: 'asof', cls: 'p118', toggle: true, zero: true },
-    lr118: { build: labaRugi, title: 'LAPORAN LABA RUGI - PSAK 118', per: 'range', cls: 'p118', toggle: true, zero: true },
+    lr118: { build: labaRugi, title: 'LAPORAN LABA RUGI', per: 'range', cls: 'p118', toggle: true, zero: true },
     ekuitas118: { build: ekuitas, title: 'LAPORAN PERUBAHAN EKUITAS - PSAK 118', per: 'range', cls: 'p118', toggle: true, zero: true },
     arus118: { build: arusKas, title: 'LAPORAN ARUS KAS (METODE TIDAK LANGSUNG) - PSAK 118', per: 'range', cls: 'p118', toggle: true, zero: true },
     calk118: { build: calk, title: 'CATATAN ATAS LAPORAN KEUANGAN - PSAK 118', per: 'range', cls: 'p118', toggle: true, zero: true },
